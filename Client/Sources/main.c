@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include "../Headers/client.h"
 
 void uploadFile(const char *filename) {
     printf("Uploading file '%s' to the server...\n", filename);

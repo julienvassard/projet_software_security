@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <string.h>
-#include "../Headers/client.h"
+#include "client.h"
 
-void uploadFile(const char *filename) {
-    printf("Uploading file '%s' to the server...\n", filename);
+void uploadFile(char *filename, int numPort) {
+    printf("Uploading file '%s' to the server on port %d...\n", filename,numPort);
+    sndmsg(filename,numPort);
 }
 
 void listFiles() {
@@ -15,13 +16,18 @@ void downloadFile(const char *filename) {
 }
 
 int main(int argc, char *argv[]) {
+
+    int numPort;
+
     if (argc < 2) {
         printf("Usage: %s [option] [file]\n", argv[0]);
         return 1;
     }
 
     if (strcmp(argv[1], "-up") == 0 && argc == 3) {
-        uploadFile(argv[2]);
+        printf("Entrez le numéro de port : ");
+        scanf("%d", &numPort);
+        uploadFile(argv[2], numPort);
     } else if (strcmp(argv[1], "-list") == 0) {
         listFiles();
     } else if (strcmp(argv[1], "-down") == 0 && argc == 3) {

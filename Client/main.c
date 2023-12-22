@@ -17,7 +17,7 @@ void downloadFile(const char *filename) {
 
 int main(int argc, char *argv[]) {
 
-    int numPort;
+    int numPort = 5000;
 
     if (argc < 2) {
         printf("Usage: %s [option] [file]\n", argv[0]);
@@ -25,8 +25,6 @@ int main(int argc, char *argv[]) {
     }
 
     if (strcmp(argv[1], "-up") == 0 && argc == 3) {
-        printf("Entrez le numéro de port : ");
-        scanf("%d", &numPort);
         uploadFile(argv[2], numPort);
     } else if (strcmp(argv[1], "-list") == 0) {
         listFiles();

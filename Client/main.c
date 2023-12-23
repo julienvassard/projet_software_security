@@ -3,10 +3,47 @@
 #include "client.h"
 #include "server.h"
 
+#define CHUNK_SIZE 1024
+#define HEADER_SIZE 256
+
+
+void sendFileChunk(char *data, size_t dataSize, int numPort) {
+    char header[HEADER_SIZE];
+    snprintf(header, sizeof(header), "Header: SenderID_FileName: file_chunk");
+
+    char combinedData[CHUNK_SIZE + HEADER_SIZE];
+    snprintf(combinedData, sizeof(combinedData), "%s%s", header, data);
+
+    sndmsg(combinedData, numPort);
+}
+
+
 void uploadFile(char *filename, int numPort) {
     printf("Uploading file '%s' to the server on port %d...\n", filename,numPort);
-    sndmsg(filename,numPort);
+  
+    FILE *file = fopen(filename, "rb");
+    if (file == NULL) {
+        perror("Error opening file");
+        return;
+    }
+
+    char header[256];
+    snprintf(header, sizeof(header), "Header: SenderID_FileName: %s", filename);
+    sndmsg(header, numPort);
+
+    char buffer[CHUNK_SIZE];
+    size_t bytesRead;
+    while ((bytesRead = fread(buffer, 1, CHUNK_SIZE - strlen(header), file)) > 0) {
+        sendFileChunk(buffer, bytesRead, numPort); // Fonction à implémenter
+    }
+
+    fclose(file);
+    sndmsg("EOF", numPort);
+
 }
+
+
+
 
 void listFiles(int numPort) {
     char msg[1024];

@@ -73,37 +73,42 @@ void listFiles(int numPort) {
 void downloadFile(char *filename, int numPort, const char* userID) {
     printf("Downloading file '%s' from the server...\n", filename);
     
+    // Inclure l'UserID dans la demande de téléchargement
     char command[1024];
-    snprintf(command, sizeof(command), "-down %s UserID:%s", filename,userID);
+    snprintf(command, sizeof(command), "-down %s UserID:%s", filename, userID);
+    sndmsg(command, numPort); // Envoie la commande au serveur
     
-    printf("Sending command to server: %s\n", command); //a enlever
-    sndmsg(command, numPort); 
-    
+    // Ouvre un serveur côté client pour recevoir le fichier
     startserver(numPort + 1);
     char getFileCommand[256];
-    snprintf(getFileCommand, sizeof(getFileCommand), "get:%s", filename);
+    snprintf(getFileCommand, sizeof(getFileCommand), "get:%s UserID:%s", filename,userID);
     sndmsg(getFileCommand, numPort);
-
+    
+    // Prépare à recevoir le fichier
     char receivedData[CHUNK_SIZE + HEADER_SIZE];
-    FILE *file = fopen(filename, "wb");
+    FILE *file = fopen(filename, "wb"); // Ouvre le fichier local pour l'écriture
     if (file == NULL) {
-        perror("Error opening file");
+        perror("Erreur lors de l'ouverture du fichier local");
         stopserver();
         return;
     }
-
+    
+    // Boucle pour recevoir les données du fichier
     while (1) {
-        getmsg(receivedData);
-        if (strstr(receivedData, "EOF") != NULL) {
-            break;
+        getmsg(receivedData); // Attends et reçoit les données du serveur
+        if (strstr(receivedData, "EOF") != NULL) { // Vérifie le marqueur de fin de fichier
+            break; // Sortie de la boucle si la fin du fichier est atteinte
         }
-        size_t headerLength = strcspn(receivedData, "\n");
-        fwrite(receivedData + headerLength, 1, strlen(receivedData) - headerLength, file);
+        size_t headerLength = strcspn(receivedData, "\n"); // Calcule la longueur du header
+        fwrite(receivedData + headerLength, 1, strlen(receivedData) - headerLength, file); // Écrit les données dans le fichier
     }
-
+    
+    // Fermeture du fichier et du serveur
     fclose(file);
-    printf("File '%s' downloaded from server\n", filename);
     stopserver();
+    printf("Fichier '%s' téléchargé avec succès\n", filename);
+    
+    
     }
 
 

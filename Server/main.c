@@ -55,7 +55,7 @@ void handleUpload(int numPort) {
         printf("Attente de nouveau contenu venant du client\n");
         getmsg(msg);
 
-        printf("Received message: %s\n", msg); // a enlever
+       
 
         if(sscanf(msg, "Header: UserID:%255[^_]_", userID) == 1){
             if(validateUserId(userID)){
@@ -140,8 +140,8 @@ void handleDownload(int numPort) {
     char filename[256] = "";
     //sscanf(msg, "get:%s", filename);
 
-
-    if (sscanf(msg, "-down %255s UserID:%255s", filename, userID) == 2) {
+    printf("Received message: %s\n", msg); // a enlever
+    if (sscanf(msg, "get:%255s UserID:%255s", filename, userID) == 2) {
         if (validateUserId(userID)) { // && validateFilename(filename)
             char filepath[2048];
             snprintf(filepath, sizeof(filepath), "./user_files/%s/%s", userID, filename);

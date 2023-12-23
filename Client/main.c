@@ -7,18 +7,22 @@
 #define HEADER_SIZE 256
 
 
-void sendFileChunk(char *data, size_t dataSize, int numPort) {
+void sendFileChunk(char *data, size_t dataSize, int numPort, const char* userId) 
+{
     char header[HEADER_SIZE];
-    snprintf(header, sizeof(header), "Header: SenderID_FileName: file_chunk");
+    //on met l' user ID dans le header
+    snprintf(header, sizeof(header), "Header: UserID:%s_FileName: file_chunk", userId);
 
     char combinedData[CHUNK_SIZE + HEADER_SIZE];
+    // on combine les data et le header
     snprintf(combinedData, sizeof(combinedData), "%s%s", header, data);
 
+    // on envoie les données combinés 
     sndmsg(combinedData, numPort);
 }
 
 
-void uploadFile(char *filename, int numPort) {
+void uploadFile(char *filename, int numPort, const char* userID) {
     printf("Uploading file '%s' to the server on port %d...\n", filename,numPort);
   
     char command[1024];
@@ -38,7 +42,7 @@ void uploadFile(char *filename, int numPort) {
     char buffer[CHUNK_SIZE];
     size_t bytesRead;
     while ((bytesRead = fread(buffer, 1, CHUNK_SIZE - strlen(header), file)) > 0) {
-        sendFileChunk(buffer, bytesRead, numPort); // Fonction à implémenter
+        sendFileChunk(buffer, bytesRead, numPort, userID); // Fonction à implémenter
     }
 
     fclose(file);
@@ -116,9 +120,11 @@ int main(int argc, char *argv[]) {
         printf("Usage: %s [option] [file]\n", argv[0]);
         return 1;
     }
+    
+    const char* userId = "UserID123"; // a changer plus tard pour le mettre dynamique
 
     if (strcmp(argv[1], "-up") == 0 && argc == 3) {
-        uploadFile(argv[2], numPort);
+        uploadFile(argv[2], numPort,userID);
     } else if (strcmp(argv[1], "-list") == 0) {
         listFiles(numPort);
     } else if (strcmp(argv[1], "-down") == 0 && argc == 3) {

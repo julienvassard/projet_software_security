@@ -121,10 +121,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    const char* userId = "UserID123"; // a changer plus tard pour le mettre dynamique
+    const char* userId = "UserID124"; // a changer plus tard pour le mettre dynamique
 
     if (strcmp(argv[1], "-up") == 0 && argc == 3) {
-        uploadFile(argv[2], numPort,userID);
+        uploadFile(argv[2], numPort,userId);
     } else if (strcmp(argv[1], "-list") == 0) {
         listFiles(numPort);
     } else if (strcmp(argv[1], "-down") == 0 && argc == 3) {

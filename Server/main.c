@@ -3,6 +3,11 @@
 #include "server.h"
 #include "client.h"
 #include <dirent.h>
+#include <stdbool.h>
+#include <errno.h>
+#include <ctype.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #define HEADER_SIZE 256
 #define CHUNK_SIZE 1024
@@ -10,7 +15,7 @@
 // On autorise uniquement les caractères alphanumériques par question de sécurité
 bool validateUserId(const char* userID) {
     for (int i = 0; userID[i] != '\0'; i++) {
-        if (!isalnum(userID[i])) { /
+        if (!isalnum(userID[i])) { //
             return false;
         }
     }
@@ -19,6 +24,7 @@ bool validateUserId(const char* userID) {
 
 void handleUpload(int numPort) {
     char filename[256] = ""; // Initialisation du nom de fichier
+    char userID[256]=""; // Initialisation de l'user ID 
     char msg[CHUNK_SIZE + HEADER_SIZE];
 
     FILE *file = NULL;
@@ -28,37 +34,38 @@ void handleUpload(int numPort) {
         printf("Attente de nouveau contenu venant du client\n");
         getmsg(msg);
 
-    if(validateUserId(userID)){
+   
         if(sscanf(msg, "Header: UserID:%255[^_]_", userID) == 1){
-            char *fileHeader = strstr(msg, "FileName: ");
-            if (fileHeader != NULL) {
-                sscanf(fileHeader, "FileName: %s", filename);
+            if(validateUserId(userID)){
+                char *fileHeader = strstr(msg, "FileName: ");
+                if (fileHeader != NULL) {
+                    sscanf(fileHeader, "FileName: %s", filename);
 
                 // On creer un chemin de repertoire pour l'user s'il n'existe pas
-                char userDirPath[1024];
-                snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userId);
+                    char userDirPath[1024];
+                    snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userID);
                 
-                if(mkdir(userDirPath, 0777) == -1) { // on s'assure que le repertoire existe
-                    if(errno != EXXIST){
-                        perror("Error when the creation of the directory"); //au cas où
-                        continue;
-                    }
-                }
+                    if(mkdir(userDirPath, 0777) == -1) { // on s'assure que le repertoire existe
+                        if(errno != EEXIST){
+                            perror("Error when the creation of the directory"); //au cas où
+                            continue;
+                                        }
+                            }
                 // on construit le chemin complet du fichier
-                char filepath[1024];
-                snprintf(filepath, sizeof(filepath), "%s/%s", userDirPath, filename);
+                    char filepath[2048];
+                    snprintf(filepath, sizeof(filepath), "%s/%s", userDirPath, filename);
 
-                if (file != NULL) {
-                    fclose(file); // Fermeture du fichier précédent s'il existe
-                }
+                    if (file != NULL) {
+                        fclose(file); // Fermeture du fichier précédent s'il existe
+                            }
 
-                file = fopen(filepath, "wb");
-                if (file == NULL) {
-                    perror("Erreur lors de l'ouverture du fichier");
-                    continue;
-                }
-            }
-        }
+                    file = fopen(filepath, "wb");
+                    if (file == NULL) {
+                        perror("Erreur lors de l'ouverture du fichier");
+                        continue;
+                             }
+                    }
+        
     
 
         // Vérifier si le message est une partie du fichier et écrire dans le fichier
@@ -82,17 +89,18 @@ void handleUpload(int numPort) {
             fclose(file);
             file = NULL;
             totalReceived = 0;
-            printf("Fichier '%s' reçu avec succès dans le répertoire de l'utilisateur %s.\n", filename, userId);
+            printf("Fichier '%s' reçu avec succès dans le répertoire de l'utilisateur %s.\n", filename, userID);
             break; // Sortir de la boucle si EOF est reçu
         }
     }
-    else
+     else
     {
         printf("Invalid User ID received !! \n");
         continue;
     }
 
 
+        }
     }
 
 }
@@ -123,7 +131,7 @@ void handleDownload(int numPort) {
     printf("Fichier '%s' telechargé avec succès.\n", filename);
 }
 
-void handleList(int numPort, const char* userID) {
+void handleList(int numPort) {
     struct dirent *de;
     DIR *dr = opendir("."); // Ouvre le répertoire courant du serveur
 

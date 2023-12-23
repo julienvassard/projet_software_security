@@ -7,7 +7,15 @@
 #define HEADER_SIZE 256
 #define CHUNK_SIZE 1024
 
-
+// On autorise uniquement les caractères alphanumériques par question de sécurité
+bool validateUserId(const char* userID) {
+    for (int i = 0; userID[i] != '\0'; i++) {
+        if (!isalnum(userID[i])) { /
+            return false;
+        }
+    }
+    return true;
+}
 
 void handleUpload(int numPort) {
     char filename[256] = ""; // Initialisation du nom de fichier
@@ -20,8 +28,8 @@ void handleUpload(int numPort) {
         printf("Attente de nouveau contenu venant du client\n");
         getmsg(msg);
 
-
-        if(sscanf(msg, "Header: UserID:%255[^_]_", userId) == 1){
+    if(validateUserId(userID)){
+        if(sscanf(msg, "Header: UserID:%255[^_]_", userID) == 1){
             char *fileHeader = strstr(msg, "FileName: ");
             if (fileHeader != NULL) {
                 sscanf(fileHeader, "FileName: %s", filename);
@@ -29,8 +37,13 @@ void handleUpload(int numPort) {
                 // On creer un chemin de repertoire pour l'user s'il n'existe pas
                 char userDirPath[1024];
                 snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userId);
-                mkdir(userDirPath, 0777); // on s'assure que le repertoire existe
-
+                
+                if(mkdir(userDirPath, 0777) == -1) { // on s'assure que le repertoire existe
+                    if(errno != EXXIST){
+                        perror("Error when the creation of the directory"); //au cas où
+                        continue;
+                    }
+                }
                 // on construit le chemin complet du fichier
                 char filepath[1024];
                 snprintf(filepath, sizeof(filepath), "%s/%s", userDirPath, filename);
@@ -42,18 +55,26 @@ void handleUpload(int numPort) {
                 file = fopen(filepath, "wb");
                 if (file == NULL) {
                     perror("Erreur lors de l'ouverture du fichier");
-                    return;
+                    continue;
                 }
             }
         }
+    
 
         // Vérifier si le message est une partie du fichier et écrire dans le fichier
         if (strstr(msg, "Header: SenderID_FileName: file_chunk") != NULL) {
             size_t headerLength = strlen("Header: SenderID_FileName: file_chunk");
             size_t dataLength = strlen(msg) - headerLength;
+            if(fwrite(msg + headerLength, 1, dataLength, file)!=dataLength)
+                {
+                    perror("Erreur lors de l'écriture dans le fichier");
+                    fclose(file);
+                    file = NULL;
+                    continue; // Passer à la prochaine itération pour la sécurité
+                }
 
-            fwrite(msg + headerLength, 1, dataLength, file);
             totalReceived += dataLength;
+            
         }
 
         // Si la taille reçue est suffisante, fermer le fichier
@@ -65,9 +86,16 @@ void handleUpload(int numPort) {
             break; // Sortir de la boucle si EOF est reçu
         }
     }
+    else
+    {
+        printf("Invalid User ID received !! \n");
+        continue;
+    }
+
+
+    }
+
 }
-
-
 
 void handleDownload(int numPort) {
     char msg[1024];

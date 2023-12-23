@@ -70,13 +70,14 @@ void listFiles(int numPort) {
 
 
 
-void downloadFile(char *filename, int numPort) {
+void downloadFile(char *filename, int numPort, const char* userID) {
     printf("Downloading file '%s' from the server...\n", filename);
     
     char command[1024];
-    snprintf(command, sizeof(command), "-down %s", filename);
-    sndmsg(command, numPort); 
+    snprintf(command, sizeof(command), "-down %s UserID:%s", filename,userID);
     
+    printf("Sending command to server: %s\n", command); //a enlever
+    sndmsg(command, numPort); 
     
     startserver(numPort + 1);
     char getFileCommand[256];
@@ -128,7 +129,7 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(argv[1], "-list") == 0) {
         listFiles(numPort);
     } else if (strcmp(argv[1], "-down") == 0 && argc == 3) {
-        downloadFile(argv[2],numPort);
+        downloadFile(argv[2],numPort,userId);
     } else {
         printf("Invalid command or arguments\n");
         printf("Usage: %s [option] [file]\n", argv[0]);

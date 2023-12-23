@@ -22,6 +22,27 @@ bool validateUserId(const char* userID) {
     return true;
 }
 
+//Securite au niveau des fichiers
+bool validateFilename(const char* filename) {
+    // Pas de fichier vide 
+    if (filename == NULL || strlen(filename) == 0) return false;
+
+    //On verifie chaque caractere du fichier
+    for (int i = 0; filename[i] != '\0'; i++) {
+        // On autorise seulement des caractères non spéciaux
+        if (!isalnum(filename[i]) && filename[i] != '.' && filename[i] != '-' && filename[i] != '_') {
+            return false;
+        }
+
+        // On evite de commencer par un point ou un double point (.) (..)
+        if (i == 0 && filename[i] == '.') return false;
+    }
+
+    // A voir avec l'equipe si on doit verifier d'autre chose 
+
+    return true;
+}
+
 void handleUpload(int numPort) {
     char filename[256] = ""; // Initialisation du nom de fichier
     char userID[256]=""; // Initialisation de l'user ID 
@@ -34,12 +55,18 @@ void handleUpload(int numPort) {
         printf("Attente de nouveau contenu venant du client\n");
         getmsg(msg);
 
-   
+        printf("Received message: %s\n", msg); // a enlever
+
         if(sscanf(msg, "Header: UserID:%255[^_]_", userID) == 1){
             if(validateUserId(userID)){
                 char *fileHeader = strstr(msg, "FileName: ");
                 if (fileHeader != NULL) {
                     sscanf(fileHeader, "FileName: %s", filename);
+                
+                if (!validateFilename(filename)) {
+                    printf("Invalid file name received: %s\n", filename);
+                    continue;
+                    }
 
                 // On creer un chemin de repertoire pour l'user s'il n'existe pas
                     char userDirPath[1024];
@@ -109,26 +136,44 @@ void handleDownload(int numPort) {
     char msg[1024];
     getmsg(msg);
 
-    char filename[256];
-    sscanf(msg, "get:%s", filename);
-
-    FILE *file = fopen(filename, "rb");
-    if (file == NULL) {
-        perror("Error opening file");
-        return;
-    }
-
-    char data[CHUNK_SIZE];
-    size_t bytesRead;
-    while ((bytesRead = fread(data, 1, sizeof(data), file)) > 0) {
-        sndmsg(data, numPort + 1);
-    }
+    char userID[256] = "";
+    char filename[256] = "";
+    //sscanf(msg, "get:%s", filename);
 
 
-    sndmsg("EOF", numPort + 1);
-    fclose(file);
+    if (sscanf(msg, "-down %255s UserID:%255s", filename, userID) == 2) {
+        if (validateUserId(userID)) { // && validateFilename(filename)
+            char filepath[2048];
+            snprintf(filepath, sizeof(filepath), "./user_files/%s/%s", userID, filename);
 
-    printf("Fichier '%s' telechargé avec succès.\n", filename);
+            FILE *file = fopen(filename, "rb");
+            if (file != NULL) {
+                char data[CHUNK_SIZE];
+                size_t bytesRead;
+                while ((bytesRead = fread(data, 1, sizeof(data), file)) > 0) {
+                    sndmsg(data, numPort + 1);
+                }
+                sndmsg("EOF", numPort + 1);
+                fclose(file);
+                printf("Fichier '%s' téléchargé avec succès pour l'utilisateur %s.\n", filename, userID);
+                
+               
+                    }
+            else {
+                 perror("Error opening file \n");
+            }
+        }  
+        
+        else {
+                perror("Invalid User ID or file received !!! \n");
+        }
+    } 
+
+    else {
+            printf("Filename: %s, UserID: %s\n", filename, userID);
+            perror("Invalid command received !!!!!!!! \n");
+
+        }          
 }
 
 void handleList(int numPort) {

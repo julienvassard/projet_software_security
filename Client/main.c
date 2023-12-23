@@ -21,6 +21,10 @@ void sendFileChunk(char *data, size_t dataSize, int numPort) {
 void uploadFile(char *filename, int numPort) {
     printf("Uploading file '%s' to the server on port %d...\n", filename,numPort);
   
+    char command[1024];
+    snprintf(command, sizeof(command), "-up %s", filename);
+    sndmsg(command, numPort); 
+
     FILE *file = fopen(filename, "rb");
     if (file == NULL) {
         perror("Error opening file");
@@ -46,26 +50,63 @@ void uploadFile(char *filename, int numPort) {
 
 
 void listFiles(int numPort) {
+    char command[1024];
+    snprintf(command, sizeof(command), "-list");
+    sndmsg(command, numPort); 
+
     char msg[1024];
-    printf("Listing files stored by the employee on the server...\n");
-    startserver(numPort+1);
-    sndmsg("list",numPort);
+    printf("Récupération de la liste des fichiers sur le serveur...\n");
+    startserver(numPort + 1);
+    sndmsg("-list", numPort); 
     getmsg(msg);
-    printf("Liste des fichiers : %s\n",msg);
+    printf("Liste des fichiers sur le serveur : %s\n", msg);
     stopserver();
 }
 
+
+
+
 void downloadFile(char *filename, int numPort) {
-    char msg[1024];
-    char get[] = "get:";
     printf("Downloading file '%s' from the server...\n", filename);
-    startserver(numPort+1);
-    strcat(get,filename);
-    sndmsg(get,numPort);
-    getmsg(msg);
-    printf("File %s downloaded from server\n",msg);
+    
+    char command[1024];
+    snprintf(command, sizeof(command), "-down %s", filename);
+    sndmsg(command, numPort); 
+    
+    
+    startserver(numPort + 1);
+    char getFileCommand[256];
+    snprintf(getFileCommand, sizeof(getFileCommand), "get:%s", filename);
+    sndmsg(getFileCommand, numPort);
+
+    char receivedData[CHUNK_SIZE + HEADER_SIZE];
+    FILE *file = fopen(filename, "wb");
+    if (file == NULL) {
+        perror("Error opening file");
+        stopserver();
+        return;
+    }
+
+    while (1) {
+        getmsg(receivedData);
+        if (strstr(receivedData, "EOF") != NULL) {
+            break;
+        }
+        size_t headerLength = strcspn(receivedData, "\n");
+        fwrite(receivedData + headerLength, 1, strlen(receivedData) - headerLength, file);
+    }
+
+    fclose(file);
+    printf("File '%s' downloaded from server\n", filename);
     stopserver();
-}
+    }
+
+
+
+
+
+
+
 
 int main(int argc, char *argv[]) {
 

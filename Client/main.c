@@ -85,8 +85,8 @@ void downloadFile(char *filename, int numPort, const char* userID) {
     sndmsg(getFileCommand, numPort);
 
     // Prépare à recevoir le fichier
-    char receivedData[CHUNK_SIZE + HEADER_SIZE];
-    FILE *file = fopen(filename, "wb"); // Ouvre le fichier local pour l'écriture
+    char receivedData[CHUNK_SIZE];
+    FILE *file = fopen(filename, "w"); // Ouvre le fichier local pour l'écriture
     if (file == NULL) {
         perror("Erreur lors de l'ouverture du fichier local");
         stopserver();
@@ -96,11 +96,14 @@ void downloadFile(char *filename, int numPort, const char* userID) {
     // Boucle pour recevoir les données du fichier
     while (1) {
         getmsg(receivedData); // Attends et reçoit les données du serveur
+        printf("data : %s\n",receivedData);
         if (strstr(receivedData, "EOF") != NULL) { // Vérifie le marqueur de fin de fichier
             break; // Sortie de la boucle si la fin du fichier est atteinte
         }
-        size_t headerLength = strcspn(receivedData, "\n"); // Calcule la longueur du header
-        fwrite(receivedData + headerLength, 1, strlen(receivedData) - headerLength, file); // Écrit les données dans le fichier
+        size_t receivedDataLength = strlen(receivedData);
+        fwrite(receivedData, 1, receivedDataLength, file); // Écrit les données dans le fichier
+        fclose(file);
+
     }
 
     // Fermeture du fichier et du serveur

@@ -55,7 +55,6 @@ void handleUpload(int numPort) {
     while (1) {
         printf("Attente de nouveau contenu venant du client\n");
         getmsg(msg);
-        printf("Tous les messages : %s\n", msg);
 
 
         if (sscanf(msg, "Header: UserID:%255[^_]_", userID) == 1) {
@@ -100,16 +99,6 @@ void handleUpload(int numPort) {
                 if (strstr(msg, header) != NULL) {
                     size_t headerLength = strlen(header);
                     size_t dataLength = strlen(msg) - headerLength;
-                    //size_t dataLength = strlen(msg);
-                    //printf("Message : %s",msg);
-                    /*if(fwrite(msg + headerLength, 1, dataLength, file)!=dataLength)
-                        {
-                            perror("Erreur lors de l'écriture dans le fichier");
-                            fclose(file);
-                            file = NULL;
-                            continue; // Passer à la prochaine itération pour la sécurité
-                        }*/
-                    //fprintf(file, "Bonjour, ceci est un exemple de texte dans un fichier.\n");
                     size_t bytes_written = fwrite(msg + headerLength, 1, dataLength, file);
                     if (bytes_written != dataLength) {
                         perror("Erreur lors de l'écriture dans le fichier");
@@ -147,19 +136,21 @@ void handleDownload(int numPort) {
 
     char userID[256] = "";
     char filename[256] = "";
+    char filepath[2048];
     //sscanf(msg, "get:%s", filename);
+
 
     printf("Received message: %s\n", msg); // a enlever
     if (sscanf(msg, "get:%255s UserID:%255s", filename, userID) == 2) {
+        snprintf(filepath, sizeof(filepath), "./user_files/%s/%s", userID, filename);
+        printf("path : %s\n",filepath);
         if (validateUserId(userID)) { // && validateFilename(filename)
-            char filepath[2048];
-            snprintf(filepath, sizeof(filepath), "./user_files/%s/%s", userID, filename);
-
-            FILE *file = fopen(filename, "rb");
+            FILE *file = fopen(filepath, "rb");
             if (file != NULL) {
                 char data[CHUNK_SIZE];
                 size_t bytesRead;
                 while ((bytesRead = fread(data, 1, sizeof(data), file)) > 0) {
+                    printf("data : %s\n",data);
                     sndmsg(data, numPort + 1);
                 }
                 sndmsg("EOF", numPort + 1);

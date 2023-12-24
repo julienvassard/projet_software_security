@@ -186,7 +186,6 @@ void handleList(int numPort) {
             char userDirPath[1024] = "";
             snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userID);
             DIR *dir = opendir(userDirPath);
-            printf("%s \n", userDirPath);
             if (dir == NULL) {
                 perror("Erreur d'ouverture du repertoire, verifiez que vous ayez bien envoyer des fichiers d'abords");
                 return;
@@ -199,10 +198,8 @@ void handleList(int numPort) {
                     strcat(fileList, "\n");
                 }
             }
-            printf("%s \n", fileList);
             closedir(dir);
             sndmsg(fileList, numPort + 1);
-            stopserver();
         } else {
             perror("ID utilisateur invalide reçu");
 

@@ -53,7 +53,7 @@ void handleUpload(int numPort) {
     size_t totalReceived = 0;
 
     while (1) {
-        printf("Attente de nouveau contenu venant du client\n");
+        printf("Attente de nouveau contenu venant du client message up\n");
         getmsg(msg);
 
 
@@ -108,10 +108,10 @@ void handleUpload(int numPort) {
                     }
                     totalReceived += dataLength;
                     fclose(file);
-
                 }
 
                 // Si la taille reçue est suffisante, fermer le fichier
+                printf("test : %s\n",msg);
                 if (strstr(msg, "EOF") != NULL || totalReceived >= CHUNK_SIZE) {
                     fclose(file);
                     file = NULL;
@@ -125,6 +125,9 @@ void handleUpload(int numPort) {
             }
 
 
+        }
+        if(strstr(msg, "EOF") != NULL){
+            break;
         }
     }
 

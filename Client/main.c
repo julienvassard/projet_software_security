@@ -55,9 +55,7 @@ void listFiles(int numPort, const char *userID) {
     char command[1024];
     snprintf(command, sizeof(command), "-list");
     command[1023] = '\0';
-    printf("Command to send: %s\n", command);
     int status = sndmsg(command, numPort);
-    printf("%d", status);
     if (status < 0) {
         // Handle error
         perror("Failed to send message");
@@ -66,7 +64,7 @@ void listFiles(int numPort, const char *userID) {
 
     char msg[1024];
     // Ouvre un serveur côté client pour recevoir la liste des fichiers
-    printf("Récupération de la liste des fichiers sur le serveur pour l'utilisateur %s...\n", userID);
+    printf("getting list of file from server of user %s...\n", userID);
     startserver(numPort + 1);
     char getMessage[1024];
     snprintf(getMessage, sizeof(getMessage), "UserID:%s", userID);
@@ -74,7 +72,7 @@ void listFiles(int numPort, const char *userID) {
     sndmsg(getMessage, numPort);
     //sndmsg(" -list", numPort);
     getmsg(msg);// Reçoit la liste des fichiers
-    printf("Liste des fichiers sur le serveur pour l'utilisateur %s : \n%s\n", userID, msg);
+    printf("List of file in the server of user %s : \n%s\n", userID, msg);
 }
 
 

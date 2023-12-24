@@ -55,3 +55,4 @@ Client/*.txt
 Server/*.txt
 Server/server
 Client/sectrans
+user_files/*

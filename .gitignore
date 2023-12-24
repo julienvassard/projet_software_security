@@ -49,3 +49,7 @@ Module.symvers
 Mkfile.old
 dkms.conf
 .idea/*
+Client/*.txt
+Server/*.txt
+Server/server
+Client/sectrans

@@ -9,7 +9,9 @@ set(CMAKE_DEPENDS_LANGUAGES
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/mnt/c/Users/user/Documents/projet/projet_software_security/Client/main.c" "CMakeFiles/main.dir/Client/main.c.o" "gcc" "CMakeFiles/main.dir/Client/main.c.o.d"
+  "/mnt/c/Users/user/Documents/projet/projet_software_security/Client/mainsimple.c" "CMakeFiles/main.dir/Client/mainsimple.c.o" "gcc" "CMakeFiles/main.dir/Client/mainsimple.c.o.d"
   "/mnt/c/Users/user/Documents/projet/projet_software_security/Server/main.c" "CMakeFiles/main.dir/Server/main.c.o" "gcc" "CMakeFiles/main.dir/Server/main.c.o.d"
+  "/mnt/c/Users/user/Documents/projet/projet_software_security/Server/mainsimple.c" "CMakeFiles/main.dir/Server/mainsimple.c.o" "gcc" "CMakeFiles/main.dir/Server/mainsimple.c.o.d"
   )
 
 # Targets to which this target links.

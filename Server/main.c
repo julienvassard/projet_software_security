@@ -112,7 +112,7 @@ void handleUpload(int numPort) {
         }
 
         // Si la taille reçue est suffisante, fermer le fichier
-        if (strstr(msg, "EOF") != NULL || totalReceived >= CHUNK_SIZE) {
+        if (msg[0]=='\0' || totalReceived >= CHUNK_SIZE) {
             fclose(file);
             file = NULL;
             totalReceived = 0;
@@ -153,7 +153,7 @@ void handleDownload(int numPort) {
                 while ((bytesRead = fread(data, 1, sizeof(data), file)) > 0) {
                     sndmsg(data, numPort + 1);
                 }
-                sndmsg("EOF", numPort + 1);
+                sndmsg("EOF", numPort + 1); // a changer avec un tableau de \0
                 fclose(file);
                 printf("Fichier '%s' téléchargé avec succès pour l'utilisateur %s.\n", filename, userID);
                 
@@ -177,31 +177,35 @@ void handleDownload(int numPort) {
 }
 
 void handleList(int numPort) {
-    char msg[256];
+    char msg[1024];
     getmsg(msg);
 
     char userID[256]="";
 
     printf("%s \n",msg);
-    if(sscanf(msg,"-list UserID:%255s -list", userID) == 1){
+    if(sscanf(msg,"UserID:%255s", userID) == 1){
         if(validateUserId(userID)){
+            printf("ENORME BITE \n");
             char userDirPath[1024]="";
             snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userID);
             DIR *dir = opendir(userDirPath);
+            printf("%s \n",userDirPath);
             if(dir==NULL){
                 perror("Erreur d'ouverture du repertoire, verifiez que vous ayez bien envoyer des fichiers d'abords");
                 return;
             }
             struct dirent *de;
-            char fileList[4096]="";
+            char fileList[1024]="";
             while ((de = readdir(dir)) != NULL) {
                 if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0) {
                     strcat(fileList, de->d_name);
                     strcat(fileList, "\n");
                 }
             }
+            printf("%s \n",fileList);
             closedir(dir);
-            sndmsg(fileList, numPort);
+            sndmsg(fileList, numPort+1);
+            stopserver();
         } else {
             perror("ID utilisateur invalide reçu");
 

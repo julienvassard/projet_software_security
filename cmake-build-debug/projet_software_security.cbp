@@ -88,6 +88,9 @@
 		<Unit filename="/mnt/c/Users/user/Documents/projet/projet_software_security/Client/main.c">
 			<Option target="main"/>
 		</Unit>
+		<Unit filename="/mnt/c/Users/user/Documents/projet/projet_software_security/Client/mainsimple.c">
+			<Option target="main"/>
+		</Unit>
 		<Unit filename="/mnt/c/Users/user/Documents/projet/projet_software_security/Client/server.h">
 			<Option target="main"/>
 		</Unit>
@@ -95,6 +98,9 @@
 			<Option target="main"/>
 		</Unit>
 		<Unit filename="/mnt/c/Users/user/Documents/projet/projet_software_security/Server/main.c">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/user/Documents/projet/projet_software_security/Server/mainsimple.c">
 			<Option target="main"/>
 		</Unit>
 		<Unit filename="/mnt/c/Users/user/Documents/projet/projet_software_security/Server/server.h">

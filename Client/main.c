@@ -35,8 +35,9 @@ void uploadFile(char *filename, int numPort, const char* userID) {
         return;
     }
 
-    char header[256];
+    char header[1024];
     snprintf(header, sizeof(header), "Header: SenderID_FileName: %s", filename);
+    header[1023] = '\0';
     sndmsg(header, numPort);
 
     char buffer[CHUNK_SIZE];
@@ -44,41 +45,39 @@ void uploadFile(char *filename, int numPort, const char* userID) {
     while ((bytesRead = fread(buffer, 1, CHUNK_SIZE - strlen(header), file)) > 0) {
         sendFileChunk(buffer, bytesRead, numPort, userID); // Fonction à implémenter
     }
-
+    char eof[1024] ={'\0'};
     fclose(file);
-    sndmsg("EOF", numPort);
+    sndmsg(eof, numPort);
 
 }
 
 
-
-
 void listFiles(int numPort, const char* userID) {
    
-    char command[256];
-    snprintf(command, sizeof(command), "-list UserID:%s", userID);
+    char command[1024];
+    snprintf(command, sizeof(command), "-list");
+    command[1023]='\0';
     printf("Command to send: %s\n", command);
-
     int status = sndmsg(command, numPort);
     printf("%d",status);
     if (status < 0) {
     // Handle error
     perror("Failed to send message");
         }
-        
-    sndmsg(command, numPort); 
+
     
-    char msg[256];
+    char msg[1024];
     // Ouvre un serveur côté client pour recevoir la liste des fichiers
     printf("Récupération de la liste des fichiers sur le serveur pour l'utilisateur %s...\n", userID);
     startserver(numPort + 1);
+    char getMessage[1024];
+    snprintf(getMessage,sizeof (getMessage), "UserID:%s",userID);
+    getMessage[1023]='\0';
+    sndmsg(getMessage, numPort);
     //sndmsg(" -list", numPort); 
-    getmsg(msg); // Reçoit la liste des fichiers
+    getmsg(msg);// Reçoit la liste des fichiers
     printf("Liste des fichiers sur le serveur pour l'utilisateur %s : \n%s\n", userID, msg);
-    stopserver();
 }
-
-
 
 
 void downloadFile(char *filename, int numPort, const char* userID) {
@@ -91,7 +90,7 @@ void downloadFile(char *filename, int numPort, const char* userID) {
     
     // Ouvre un serveur côté client pour recevoir le fichier
     startserver(numPort + 1);
-    char getFileCommand[256];
+    char getFileCommand[1024];
     snprintf(getFileCommand, sizeof(getFileCommand), "get:%s UserID:%s", filename,userID);
     sndmsg(getFileCommand, numPort);
     
@@ -121,13 +120,6 @@ void downloadFile(char *filename, int numPort, const char* userID) {
     
     
     }
-
-
-
-
-
-
-
 
 int main(int argc, char *argv[]) {
 

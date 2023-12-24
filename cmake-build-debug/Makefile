@@ -153,6 +153,30 @@ Client/main.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/Client/main.c.s
 .PHONY : Client/main.c.s
 
+Client/mainsimple.o: Client/mainsimple.c.o
+.PHONY : Client/mainsimple.o
+
+# target to build an object file
+Client/mainsimple.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/Client/mainsimple.c.o
+.PHONY : Client/mainsimple.c.o
+
+Client/mainsimple.i: Client/mainsimple.c.i
+.PHONY : Client/mainsimple.i
+
+# target to preprocess a source file
+Client/mainsimple.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/Client/mainsimple.c.i
+.PHONY : Client/mainsimple.c.i
+
+Client/mainsimple.s: Client/mainsimple.c.s
+.PHONY : Client/mainsimple.s
+
+# target to generate assembly for a file
+Client/mainsimple.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/Client/mainsimple.c.s
+.PHONY : Client/mainsimple.c.s
+
 Server/main.o: Server/main.c.o
 .PHONY : Server/main.o
 
@@ -177,6 +201,30 @@ Server/main.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/Server/main.c.s
 .PHONY : Server/main.c.s
 
+Server/mainsimple.o: Server/mainsimple.c.o
+.PHONY : Server/mainsimple.o
+
+# target to build an object file
+Server/mainsimple.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/Server/mainsimple.c.o
+.PHONY : Server/mainsimple.c.o
+
+Server/mainsimple.i: Server/mainsimple.c.i
+.PHONY : Server/mainsimple.i
+
+# target to preprocess a source file
+Server/mainsimple.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/Server/mainsimple.c.i
+.PHONY : Server/mainsimple.c.i
+
+Server/mainsimple.s: Server/mainsimple.c.s
+.PHONY : Server/mainsimple.s
+
+# target to generate assembly for a file
+Server/mainsimple.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/Server/mainsimple.c.s
+.PHONY : Server/mainsimple.c.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -189,9 +237,15 @@ help:
 	@echo "... Client/main.o"
 	@echo "... Client/main.i"
 	@echo "... Client/main.s"
+	@echo "... Client/mainsimple.o"
+	@echo "... Client/mainsimple.i"
+	@echo "... Client/mainsimple.s"
 	@echo "... Server/main.o"
 	@echo "... Server/main.i"
 	@echo "... Server/main.s"
+	@echo "... Server/mainsimple.o"
+	@echo "... Server/mainsimple.i"
+	@echo "... Server/mainsimple.s"
 .PHONY : help
 
 

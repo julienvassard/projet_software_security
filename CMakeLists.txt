@@ -15,4 +15,6 @@ add_executable(main
         Server/main.c
         Server/client.h
         Server/server.h
+        Client/mainsimple.c
+        Server/mainsimple.c
 )

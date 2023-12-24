@@ -53,7 +53,7 @@ void handleUpload(int numPort) {
     size_t totalReceived = 0;
 
     while (1) {
-        printf("Attente de nouveau contenu venant du client\n");
+        printf("Attente de nouveau contenu venant du client message up\n");
         getmsg(msg);
 
 
@@ -108,10 +108,10 @@ void handleUpload(int numPort) {
                     }
                     totalReceived += dataLength;
                     fclose(file);
-
                 }
 
                 // Si la taille reçue est suffisante, fermer le fichier
+                printf("test : %s\n",msg);
                 if (strstr(msg, "EOF") != NULL || totalReceived >= CHUNK_SIZE) {
                     fclose(file);
                     file = NULL;
@@ -125,6 +125,9 @@ void handleUpload(int numPort) {
             }
 
 
+        }
+        if(strstr(msg, "EOF") != NULL){
+            break;
         }
     }
 
@@ -183,7 +186,6 @@ void handleList(int numPort) {
             char userDirPath[1024] = "";
             snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userID);
             DIR *dir = opendir(userDirPath);
-            printf("%s \n", userDirPath);
             if (dir == NULL) {
                 perror("Erreur d'ouverture du repertoire, verifiez que vous ayez bien envoyer des fichiers d'abords");
                 return;
@@ -196,10 +198,8 @@ void handleList(int numPort) {
                     strcat(fileList, "\n");
                 }
             }
-            printf("%s \n", fileList);
             closedir(dir);
             sndmsg(fileList, numPort + 1);
-            stopserver();
         } else {
             perror("ID utilisateur invalide reçu");
 

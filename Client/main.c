@@ -61,7 +61,7 @@ void listFiles(int numPort) {
     char msg[1024];
     printf("Récupération de la liste des fichiers sur le serveur...\n");
     startserver(numPort + 1);
-    sndmsg("-list", numPort); 
+    //sndmsg("-list", numPort);
     getmsg(msg);
     printf("Liste des fichiers sur le serveur : %s\n", msg);
     stopserver();

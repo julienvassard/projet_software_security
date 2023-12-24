@@ -189,7 +189,7 @@ void handleList(int numPort) {
     while ((de = readdir(dr)) != NULL) {
         if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0) {
             strcat(fileList, de->d_name);
-            strcat(fileList, "\n");
+            strcat(fileList, "\n");//
         }
     }
 

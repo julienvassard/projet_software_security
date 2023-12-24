@@ -187,7 +187,6 @@ void handleList(int numPort) {
         if(validateUserId(userID)){
             char userDirPath[1024]="";
             snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userID);
-
             DIR *dir = opendir(userDirPath);
             if(dir==NULL){
                 perror("Erreur d'ouverture du repertoire, verifiez que vous ayez bien envoyer des fichiers d'abords");
@@ -205,6 +204,7 @@ void handleList(int numPort) {
             sndmsg(fileList, numPort);
         } else {
             perror("ID utilisateur invalide reçu");
+
         }
     } else {
         perror("Commande invalide reçue");

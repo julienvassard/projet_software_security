@@ -7,8 +7,7 @@
 #define HEADER_SIZE 256
 
 
-void sendFileChunk(char *data, size_t dataSize, int numPort, const char* userId, char *filename)
-{
+void sendFileChunk(char *data, size_t dataSize, int numPort, const char *userId, char *filename) {
     char header[HEADER_SIZE];
     //on met l' user ID dans le header
     snprintf(header, sizeof(header), "Header: UserID:%s_FileName: %s", userId, filename);
@@ -21,8 +20,8 @@ void sendFileChunk(char *data, size_t dataSize, int numPort, const char* userId,
 }
 
 
-void uploadFile(char *filename, int numPort, const char* userID) {
-    printf("Uploading file '%s' to the server on port %d...\n", filename,numPort);
+void uploadFile(char *filename, int numPort, const char *userID) {
+    printf("Uploading file '%s' to the server on port %d...\n", filename, numPort);
 
     char command[1024];
     snprintf(command, sizeof(command), "-up %s", filename);
@@ -41,7 +40,7 @@ void uploadFile(char *filename, int numPort, const char* userID) {
     char buffer[CHUNK_SIZE];
     size_t bytesRead;
     while ((bytesRead = fread(buffer, 1, CHUNK_SIZE - strlen(header), file)) > 0) {
-        sendFileChunk(buffer, bytesRead, numPort, userID,filename); // Fonction à implémenter
+        sendFileChunk(buffer, bytesRead, numPort, userID, filename); // Fonction à implémenter
     }
 
     fclose(file);
@@ -51,26 +50,35 @@ void uploadFile(char *filename, int numPort, const char* userID) {
 }
 
 
+void listFiles(int numPort, const char *userID) {
 
-
-void listFiles(int numPort) {
     char command[1024];
     snprintf(command, sizeof(command), "-list");
-    sndmsg(command, numPort);
+    command[1023] = '\0';
+    printf("Command to send: %s\n", command);
+    int status = sndmsg(command, numPort);
+    printf("%d", status);
+    if (status < 0) {
+        // Handle error
+        perror("Failed to send message");
+    }
+
 
     char msg[1024];
-    printf("Récupération de la liste des fichiers sur le serveur...\n");
+    // Ouvre un serveur côté client pour recevoir la liste des fichiers
+    printf("Récupération de la liste des fichiers sur le serveur pour l'utilisateur %s...\n", userID);
     startserver(numPort + 1);
-    sndmsg("-list", numPort);
-    getmsg(msg);
-    printf("Liste des fichiers sur le serveur : %s\n", msg);
-    stopserver();
+    char getMessage[1024];
+    snprintf(getMessage, sizeof(getMessage), "UserID:%s", userID);
+    getMessage[1023] = '\0';
+    sndmsg(getMessage, numPort);
+    //sndmsg(" -list", numPort);
+    getmsg(msg);// Reçoit la liste des fichiers
+    printf("Liste des fichiers sur le serveur pour l'utilisateur %s : \n%s\n", userID, msg);
 }
 
 
-
-
-void downloadFile(char *filename, int numPort, const char* userID) {
+void downloadFile(char *filename, int numPort, const char *userID) {
     printf("Downloading file '%s' from the server...\n", filename);
 
     // Inclure l'UserID dans la demande de téléchargement
@@ -81,7 +89,7 @@ void downloadFile(char *filename, int numPort, const char* userID) {
     // Ouvre un serveur côté client pour recevoir le fichier
     startserver(numPort + 1);
     char getFileCommand[256];
-    snprintf(getFileCommand, sizeof(getFileCommand), "get:%s UserID:%s", filename,userID);
+    snprintf(getFileCommand, sizeof(getFileCommand), "get:%s UserID:%s", filename, userID);
     sndmsg(getFileCommand, numPort);
 
     // Prépare à recevoir le fichier
@@ -96,7 +104,7 @@ void downloadFile(char *filename, int numPort, const char* userID) {
     // Boucle pour recevoir les données du fichier
     while (1) {
         getmsg(receivedData); // Attends et reçoit les données du serveur
-        printf("data : %s\n",receivedData);
+        printf("data : %s\n", receivedData);
         if (strstr(receivedData, "EOF") != NULL) { // Vérifie le marqueur de fin de fichier
             break; // Sortie de la boucle si la fin du fichier est atteinte
         }
@@ -114,13 +122,6 @@ void downloadFile(char *filename, int numPort, const char* userID) {
 
 }
 
-
-
-
-
-
-
-
 int main(int argc, char *argv[]) {
 
     int numPort = 5000;
@@ -130,14 +131,14 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    const char* userId = "UserID124"; // a changer plus tard pour le mettre dynamique
+    const char *userId = "UserID124"; // a changer plus tard pour le mettre dynamique
 
     if (strcmp(argv[1], "-up") == 0 && argc == 3) {
-        uploadFile(argv[2], numPort,userId);
+        uploadFile(argv[2], numPort, userId);
     } else if (strcmp(argv[1], "-list") == 0) {
-        listFiles(numPort);
+        listFiles(numPort, userId);
     } else if (strcmp(argv[1], "-down") == 0 && argc == 3) {
-        downloadFile(argv[2],numPort,userId);
+        downloadFile(argv[2], numPort, userId);
     } else {
         printf("Invalid command or arguments\n");
         printf("Usage: %s [option] [file]\n", argv[0]);

@@ -49,6 +49,8 @@ Module.symvers
 Mkfile.old
 dkms.conf
 .idea/*
+CMakeLists.txt
+cmake-build-debug/*
 Client/*.txt
 Server/*.txt
 Server/server

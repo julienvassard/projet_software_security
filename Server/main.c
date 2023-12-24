@@ -171,27 +171,44 @@ void handleDownload(int numPort) {
     }
 }
 
-void handleList(int numPort) {
-    struct dirent *de;
-    DIR *dr = opendir("."); // Ouvre le répertoire courant du serveur
+    void handleList(int numPort) {
+        char msg[1024];
+        getmsg(msg);
 
-    if (dr == NULL) {
-        perror("Error opening directory");
-        return;
-    }
+        char userID[256]="";
 
-    char fileList[1024] = "";
-    while ((de = readdir(dr)) != NULL) {
-        if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0) {
-            strcat(fileList, de->d_name);
-            strcat(fileList, "\n");
+        printf("%s \n",msg);
+        if(sscanf(msg,"UserID:%255s", userID) == 1){
+            if(validateUserId(userID)){
+                printf("ENORME BITE \n");
+                char userDirPath[1024]="";
+                snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userID);
+                DIR *dir = opendir(userDirPath);
+                printf("%s \n",userDirPath);
+                if(dir==NULL){
+                    perror("Erreur d'ouverture du repertoire, verifiez que vous ayez bien envoyer des fichiers d'abords");
+                    return;
+                }
+                struct dirent *de;
+                char fileList[1024]="";
+                while ((de = readdir(dir)) != NULL) {
+                    if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0) {
+                        strcat(fileList, de->d_name);
+                        strcat(fileList, "\n");
+                    }
+                }
+                printf("%s \n",fileList);
+                closedir(dir);
+                sndmsg(fileList, numPort+1);
+                stopserver();
+            } else {
+                perror("ID utilisateur invalide reçu");
+
+            }
+        } else {
+            perror("Commande invalide reçue");
         }
     }
-
-    closedir(dr);
-    sndmsg(fileList, numPort);
-
-}
 
 
 int main() {

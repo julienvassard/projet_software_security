@@ -43,7 +43,7 @@ bool validateFilename(const char* filename) {
     return true;
 }
 
-void handleUpload(int numPort) {
+ void handleUpload(int numPort) {
     char filename[256] = ""; // Initialisation du nom de fichier
     char userID[256]=""; // Initialisation de l'user ID 
     char msg[CHUNK_SIZE + HEADER_SIZE];
@@ -58,17 +58,21 @@ void handleUpload(int numPort) {
        
 
         if(sscanf(msg, "Header: UserID:%255[^_]_", userID) == 1){
+            printf("Header received\n");
+
             if(validateUserId(userID)){
+                printf("validate\n");
+
                 char *fileHeader = strstr(msg, "FileName: ");
                 if (fileHeader != NULL) {
                     sscanf(fileHeader, "FileName: %s", filename);
                 
-                if (!validateFilename(filename)) {
-                    printf("Invalid file name received: %s\n", filename);
-                    continue;
-                    }
+                    if (!validateFilename(filename)) {
+                        printf("Invalid file name received: %s\n", filename);
+                        continue;
+                        }
 
-                // On creer un chemin de repertoire pour l'user s'il n'existe pas
+                    // On creer un chemin de repertoire pour l'user s'il n'existe pas
                     char userDirPath[1024];
                     snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userID);
                 
@@ -78,59 +82,127 @@ void handleUpload(int numPort) {
                             continue;
                                         }
                             }
-                // on construit le chemin complet du fichier
+                    // on construit le chemin complet du fichier
                     char filepath[2048];
                     snprintf(filepath, sizeof(filepath), "%s/%s", userDirPath, filename);
 
                     if (file != NULL) {
                         fclose(file); // Fermeture du fichier précédent s'il existe
-                            }
+                    }
 
                     file = fopen(filepath, "wb");
+                    printf("file oppened\n");
                     if (file == NULL) {
                         perror("Erreur lors de l'ouverture du fichier");
                         continue;
-                             }
                     }
+                }
         
     
+                
+                char writting[1024]; 
+                strcpy(writting, "Header: SenderID_FileName: ");
 
-        // Vérifier si le message est une partie du fichier et écrire dans le fichier
-        if (strstr(msg, "Header: SenderID_FileName: file_chunk") != NULL) {
-            size_t headerLength = strlen("Header: SenderID_FileName: file_chunk");
-            size_t dataLength = strlen(msg) - headerLength;
-            if(fwrite(msg + headerLength, 1, dataLength, file)!=dataLength)
-                {
-                    perror("Erreur lors de l'écriture dans le fichier");
+                // Vérifier si le message est une partie du fichier et écrire dans le fichier
+                if (strstr(msg, writting ) != NULL) {
+                     printf("writting\n");
+
+                    size_t headerLength = strlen("Header: SenderID_FileName:");
+                    size_t dataLength = strlen(msg) - headerLength;
+                    if(fwrite(msg + headerLength, 1, dataLength, file)!=dataLength)
+                    {
+                        perror("Erreur lors de l'écriture dans le fichier");
+                        fclose(file);
+                        file = NULL;
+                        continue; // Passer à la prochaine itération pour la sécurité
+                    }
+
+                totalReceived += dataLength;
+            
+                }
+        
+                // Si la taille reçue est suffisante, fermer le fichier
+                char eofMessage[4]; 
+                strcpy(eofMessage, "EOF");
+                if (strstr(msg, eofMessage) != NULL || totalReceived >= CHUNK_SIZE) {
+                    printf("EOF received\n");
+
                     fclose(file);
                     file = NULL;
-                    continue; // Passer à la prochaine itération pour la sécurité
+                    totalReceived = 0;
+                    printf("Fichier '%s' reçu avec succès dans le répertoire de l'utilisateur %s.\n", filename, userID);
+                    break; // Sortir de la boucle si EOF est reçu
                 }
+            } else {
+                printf("Invalid User ID received !! \n");
+                continue;
 
-            totalReceived += dataLength;
-            
-        }
 
-        // Si la taille reçue est suffisante, fermer le fichier
-        if (strstr(msg, "EOF") != NULL || totalReceived >= CHUNK_SIZE) {
-            fclose(file);
-            file = NULL;
-            totalReceived = 0;
-            printf("Fichier '%s' reçu avec succès dans le répertoire de l'utilisateur %s.\n", filename, userID);
-            break; // Sortir de la boucle si EOF est reçu
+            }
         }
     }
-     else
-    {
-        printf("Invalid User ID received !! \n");
-        continue;
-    }
+} 
 
 
-        }
-    }
 
-}
+// void handleUpload(int numPort) {
+//     char filename[256] = ""; // Initialisation du nom de fichier
+//     char msg[CHUNK_SIZE + HEADER_SIZE];
+//     char buffer[CHUNK_SIZE];
+
+//     FILE *file = NULL;
+//     size_t totalReceived = 0;
+
+//     while (1) {
+//         printf("Attente de nouveau contenu venant du client\n");
+//         getmsg(msg);
+
+//         char *fileHeader = strstr(msg, "FileName: ");
+//         if (fileHeader != NULL) {
+//             sscanf(fileHeader, "FileName: %s", filename);
+
+//             if (file != NULL) {
+//                 fclose(file); // Fermeture du fichier précédent s'il existe
+//             }
+
+//             file = fopen(filename, "wb");
+//             printf("file opened\n");
+
+//             if (file == NULL) {
+//                 perror("Error opening file");
+//                 return;
+//             }
+//         }
+
+
+//         if (strstr(msg, "Header: SenderID_FileName:") != NULL) {
+//             printf("Header received\n");
+//             size_t headerLength = strlen("Header: SenderID_FileName:");
+//             size_t dataLength = strlen(msg) - headerLength;
+
+//             fwrite(msg + headerLength, 1, dataLength, file);
+
+//             printf("writting\n");
+
+//             totalReceived += dataLength;
+
+//             printf("totalReceived : %zu \n",totalReceived);
+//         }
+
+        
+
+//         if (strstr(msg, "EOF") == 0) {
+//             // Si la taille reçue est égale ou supérieure à CHUNK_SIZE, on ferme le fichier
+//             fclose(file);
+//             file = NULL;
+//             totalReceived = 0;
+//             printf("Fichier '%s' reçu avec succès.\n", filename);
+//         }
+//     }
+// }
+
+
+
 
 void handleDownload(int numPort) {
     char msg[1024];

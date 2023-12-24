@@ -13,13 +13,26 @@ void sendFileChunk(char *data, size_t dataSize, int numPort, const char* userId)
     //on met l' user ID dans le header
     snprintf(header, sizeof(header), "Header: UserID:%s_FileName: file_chunk", userId);
 
-    char combinedData[CHUNK_SIZE + HEADER_SIZE];
-    // on combine les data et le header
-    snprintf(combinedData, sizeof(combinedData), "%s%s", header, data);
+   
+    size_t totalSent = 0;
+    size_t remainingData = dataSize;
 
-    // on envoie les données combinés 
-    sndmsg(combinedData, numPort);
+    while (remainingData > 0) {
+        // Déterminer la taille du chunk pour cet envoi
+        size_t chunkSize = (remainingData > CHUNK_SIZE) ? CHUNK_SIZE : remainingData;
+
+        char combinedData[CHUNK_SIZE + HEADER_SIZE];
+        snprintf(combinedData, sizeof(combinedData), "%s%.*s", header, (int)chunkSize, data + totalSent);
+
+        // Envoyer le chunk de données
+        sndmsg(combinedData, numPort);
+
+        // Mettre à jour les compteurs pour le prochain chunk
+        remainingData -= chunkSize;
+        totalSent += chunkSize;
+    }
 }
+
 
 
 void uploadFile(char *filename, int numPort, const char* userID) {
@@ -35,23 +48,31 @@ void uploadFile(char *filename, int numPort, const char* userID) {
         return;
     }
 
+    
+
     char header[256];
     snprintf(header, sizeof(header), "Header: SenderID_FileName: %s", filename);
     sndmsg(header, numPort);
 
+    
+
     char buffer[CHUNK_SIZE];
     size_t bytesRead;
     while ((bytesRead = fread(buffer, 1, CHUNK_SIZE - strlen(header), file)) > 0) {
-        sendFileChunk(buffer, bytesRead, numPort, userID); // Fonction à implémenter
+        sendFileChunk(buffer, bytesRead, numPort, userID); 
     }
 
+
     fclose(file);
-    sndmsg("EOF", numPort);
+
+    char eofMessage[4]; 
+    strcpy(eofMessage, "EOF");
+    sndmsg(eofMessage, numPort);
+
+
+    printf("Uploading file with success \n");
 
 }
-
-
-
 
 void listFiles(int numPort) {
     char command[1024];

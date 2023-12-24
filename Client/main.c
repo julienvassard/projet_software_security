@@ -53,17 +53,28 @@ void uploadFile(char *filename, int numPort, const char* userID) {
 
 
 
-void listFiles(int numPort) {
-    char command[1024];
-    snprintf(command, sizeof(command), "-list");
-    sndmsg(command, numPort); 
+void listFiles(int numPort, const char* userID) {
+   
+    char command[256];
+    snprintf(command, sizeof(command), "-list UserID:%s", userID);
+    printf("Command to send: %s\n", command);
 
-    char msg[1024];
-    printf("Récupération de la liste des fichiers sur le serveur...\n");
+    int status = sndmsg(command, numPort);
+    printf("%d",status);
+    if (status < 0) {
+    // Handle error
+    perror("Failed to send message");
+        }
+        
+    sndmsg(command, numPort); 
+    
+    char msg[256];
+    // Ouvre un serveur côté client pour recevoir la liste des fichiers
+    printf("Récupération de la liste des fichiers sur le serveur pour l'utilisateur %s...\n", userID);
     startserver(numPort + 1);
-    sndmsg("-list", numPort); 
-    getmsg(msg);
-    printf("Liste des fichiers sur le serveur : %s\n", msg);
+    //sndmsg(" -list", numPort); 
+    getmsg(msg); // Reçoit la liste des fichiers
+    printf("Liste des fichiers sur le serveur pour l'utilisateur %s : \n%s\n", userID, msg);
     stopserver();
 }
 
@@ -132,7 +143,7 @@ int main(int argc, char *argv[]) {
     if (strcmp(argv[1], "-up") == 0 && argc == 3) {
         uploadFile(argv[2], numPort,userId);
     } else if (strcmp(argv[1], "-list") == 0) {
-        listFiles(numPort);
+        listFiles(numPort,userId);
     } else if (strcmp(argv[1], "-down") == 0 && argc == 3) {
         downloadFile(argv[2],numPort,userId);
     } else {

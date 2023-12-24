@@ -177,33 +177,45 @@ void handleDownload(int numPort) {
 }
 
 void handleList(int numPort) {
-    struct dirent *de;
-    DIR *dr = opendir("."); // Ouvre le répertoire courant du serveur
+    char msg[256];
+    getmsg(msg);
 
-    if (dr == NULL) {
-        perror("Error opening directory");
-        return;
-    }
+    char userID[256]="";
 
-    char fileList[1024] = "";
-    while ((de = readdir(dr)) != NULL) {
-        if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0) {
-            strcat(fileList, de->d_name);
-            strcat(fileList, "\n");
+    printf("%s \n",msg);
+    if(sscanf(msg,"-list UserID:%255s -list", userID) == 1){
+        if(validateUserId(userID)){
+            char userDirPath[1024]="";
+            snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userID);
+
+            DIR *dir = opendir(userDirPath);
+            if(dir==NULL){
+                perror("Erreur d'ouverture du repertoire, verifiez que vous ayez bien envoyer des fichiers d'abords");
+                return;
+            }
+            struct dirent *de;
+            char fileList[4096]="";
+            while ((de = readdir(dir)) != NULL) {
+                if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0) {
+                    strcat(fileList, de->d_name);
+                    strcat(fileList, "\n");
+                }
+            }
+            closedir(dir);
+            sndmsg(fileList, numPort);
+        } else {
+            perror("ID utilisateur invalide reçu");
         }
+    } else {
+        perror("Commande invalide reçue");
     }
-
-    closedir(dr);
-    sndmsg(fileList, numPort);
-
 }
-
 
 
 
 int main() {
     int numPort = 5000;
-    char listFiles[1024];
+    char listFiles[256];
     char filename[256] = ""; 
     char msg[CHUNK_SIZE + HEADER_SIZE];
 
@@ -213,6 +225,7 @@ int main() {
     while (1) {
         printf("Attente de nouveau contenu venant du client\n");
         getmsg(msg);
+        printf("%s",msg);
 
         if (strstr(msg, "-up") != NULL) {
             handleUpload(numPort);

@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #define HEADER_SIZE 256
 #define CHUNK_SIZE 1024
@@ -24,7 +25,7 @@ bool validateUserId(const char *userID) {
 
 //Securite au niveau des fichiers
 bool validateFilename(const char *filename) {
-    // Pas de fichier vide 
+    // Pas de fichier vide
     if (filename == NULL || strlen(filename) == 0) return false;
 
     //On verifie chaque caractere du fichier
@@ -38,11 +39,65 @@ bool validateFilename(const char *filename) {
         if (i == 0 && filename[i] == '.') return false;
     }
 
-    // A voir avec l'equipe si on doit verifier d'autre chose 
+    // A voir avec l'equipe si on doit verifier d'autre chose
 
     return true;
 }
 
+bool handUserCheck(int numport, const char* msg){
+    char userID[256]="";
+    char userNotExist[1024];
+
+    if(sscanf(msg,"-checkuser UserID:%255s",userID)==1){
+        if(validateUserId(userID)){
+            char userDirPath[1024]; // on verifie l'existence de l'user
+            snprintf(userDirPath,sizeof(userDirPath),"./user_files/%s", userID);
+            if(access(userDirPath,F_OK)== -1){
+                //L'user Id n'existe pas
+                snprintf(userNotExist,sizeof(userNotExist),"User does not exist");
+                sndmsg(userNotExist,numport+1);
+                return false;
+            }
+
+            else {
+                snprintf(userNotExist,sizeof(userNotExist),"User exists");
+                sndmsg(userNotExist,numport+1);
+            }
+        }
+        else {
+            printf("Invalid UserID");
+            return false;
+        }
+    }
+    return true;
+}
+void handUserCreate(int numPort){
+    char msg[1024];
+    char userID[256];
+    char userCreated[1024];
+    getmsg(msg);
+    if(sscanf(msg,"-createuser UserID:%255s", userID) == 1){
+        if(validateUserId(userID)){
+            char userDirPath[1024];
+            snprintf(userDirPath,sizeof(userDirPath),"./user_files/%s",userID);
+            mkdir(userDirPath,0777);
+            snprintf(userCreated,sizeof(userCreated),"User created");
+            sndmsg(userCreated,numPort+1);
+        }
+        else {
+
+            printf("Invalid UserID");
+        }
+    } else {
+        printf("User will not be created ");
+        char userNotCreated[1024];
+        snprintf(userCreated,sizeof(userCreated),"User will not be created");
+        sndmsg(userCreated,numPort+1);
+
+
+
+    }
+}
 void handleUpload(int numPort) {
     char filename[256] = ""; // Initialisation du nom de fichier
     char userID[256] = ""; // Initialisation de l'user ID
@@ -53,7 +108,7 @@ void handleUpload(int numPort) {
     size_t totalReceived = 0;
 
     while (1) {
-        printf("Attente de nouveau contenu venant du client\n");
+        printf("Attente de nouveau contenu venant du client message up\n");
         getmsg(msg);
 
 
@@ -108,10 +163,10 @@ void handleUpload(int numPort) {
                     }
                     totalReceived += dataLength;
                     fclose(file);
-
                 }
 
                 // Si la taille reçue est suffisante, fermer le fichier
+                printf("test : %s\n",msg);
                 if (strstr(msg, "EOF") != NULL || totalReceived >= CHUNK_SIZE) {
                     fclose(file);
                     file = NULL;
@@ -125,6 +180,9 @@ void handleUpload(int numPort) {
             }
 
 
+        }
+        if(strstr(msg, "EOF") != NULL){
+            break;
         }
     }
 
@@ -143,14 +201,14 @@ void handleDownload(int numPort) {
     printf("Received message: %s\n", msg); // a enlever
     if (sscanf(msg, "get:%255s UserID:%255s", filename, userID) == 2) {
         snprintf(filepath, sizeof(filepath), "./user_files/%s/%s", userID, filename);
-        printf("path : %s\n",filepath);
+        printf("path : %s\n", filepath);
         if (validateUserId(userID)) { // && validateFilename(filename)
             FILE *file = fopen(filepath, "rb");
             if (file != NULL) {
                 char data[CHUNK_SIZE];
                 size_t bytesRead;
                 while ((bytesRead = fread(data, 1, sizeof(data), file)) > 0) {
-                    printf("data : %s\n",data);
+                    printf("data : %s\n", data);
                     sndmsg(data, numPort + 1);
                 }
                 sndmsg("EOF", numPort + 1);
@@ -171,44 +229,45 @@ void handleDownload(int numPort) {
     }
 }
 
-    void handleList(int numPort) {
-        char msg[1024];
-        getmsg(msg);
+void handleList(int numPort) {
+    char msg[1024];
+    getmsg(msg);
 
-        char userID[256]="";
+    char userID[256] = "";
 
-        printf("%s \n",msg);
-        if(sscanf(msg,"UserID:%255s", userID) == 1){
-            if(validateUserId(userID)){
-                printf("ENORME BITE \n");
-                char userDirPath[1024]="";
-                snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userID);
-                DIR *dir = opendir(userDirPath);
-                printf("%s \n",userDirPath);
-                if(dir==NULL){
-                    perror("Erreur d'ouverture du repertoire, verifiez que vous ayez bien envoyer des fichiers d'abords");
-                    return;
-                }
-                struct dirent *de;
-                char fileList[1024]="";
-                while ((de = readdir(dir)) != NULL) {
-                    if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0) {
-                        strcat(fileList, de->d_name);
-                        strcat(fileList, "\n");
-                    }
-                }
-                printf("%s \n",fileList);
-                closedir(dir);
-                sndmsg(fileList, numPort+1);
-                stopserver();
-            } else {
-                perror("ID utilisateur invalide reçu");
-
+    printf("%s \n", msg);
+    if (sscanf(msg, "UserID:%255s", userID) == 1) {
+        if (validateUserId(userID)) {
+            char userDirPath[1024] = "";
+            snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userID);
+            DIR *dir = opendir(userDirPath);
+            if (dir == NULL) {
+                perror("Erreur d'ouverture du repertoire, verifiez que vous ayez bien envoyer des fichiers d'abords");
+                return;
             }
+            struct dirent *de;
+            char fileList[1024] = "";
+            while ((de = readdir(dir)) != NULL) {
+                printf("while");
+                if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0) {
+                    strcat(fileList, de->d_name);
+                    strcat(fileList, "\n");
+                }
+            }
+            closedir(dir);
+            printf("bite");
+            sndmsg(fileList, numPort + 1);
         } else {
-            perror("Commande invalide reçue");
+            perror("ID utilisateur invalide reçu");
+
         }
+    } else {
+        char rien[1024];
+        snprintf(rien,sizeof(rien),"User has no files !");
+        perror("Commande invalide reçue");
+        sndmsg(rien,numPort+1);
     }
+}
 
 
 int main() {
@@ -216,24 +275,37 @@ int main() {
     char listFiles[1024];
     char filename[256] = "";
     char msg[CHUNK_SIZE + HEADER_SIZE];
-
+    bool userValid = false;
     startserver(numPort);
 
 
     while (1) {
-        printf("Attente de nouveau contenu venant du client\n");
-        getmsg(msg);
-        if (strstr(msg, "-up") != NULL) {
-            handleUpload(numPort);
-        } else if (strstr(msg, "-down") != NULL) {
-            handleDownload(numPort);
-        } else if (strstr(msg, "-list") != NULL) {
-            handleList(numPort);
-        } else {
-            printf("Commande non reconnue\n");
+
+        while (!userValid) {
+            printf("Attente de nouveau contenu venant du client\n");
+            getmsg(msg);
+            if (handUserCheck(numPort, msg)) {
+                userValid = true;
+            } else {
+                handUserCreate(numPort);
+            }
+
+            getmsg(msg);
+            if (strstr(msg, "-up") != NULL) {
+                handleUpload(numPort);
+            } else if (strstr(msg, "-down") != NULL) {
+                handleDownload(numPort);
+            } else if (strstr(msg, "-list") != NULL) {
+                handleList(numPort);
+            }
+            else if(strcmp(msg,"Terminate")==0){
+                printf("The User will not be created !! \n");
+            }
+            else {
+                printf("Commande non reconnue\n");
+            }
+            userValid = false;
         }
     }
-
-
     return 0;
 }

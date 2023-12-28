@@ -2,12 +2,56 @@
 #include <string.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <time.h>
 #include "client.h"
 #include "server.h"
 
 #define CHUNK_SIZE 1024
 #define HEADER_SIZE 256
+#define CHUNK_SIZE 1024
+#define HEADER_SIZE 256
+#define ACK_WAIT_TIME 5000
+#define ACK_MSG "ACK"
+#define EOF_SIGNAL "FILE_TRANSFER_COMPLETE"
 
+
+void sendAck(int numPort) {
+    char ackMsg[1024] = ACK_MSG;
+    sndmsg(ackMsg, numPort);
+}
+
+bool waitForAck(int numPort) {
+    char ack[1024];
+    int startTime = time(NULL);
+    while (time(NULL) - startTime < ACK_WAIT_TIME / 1000) {
+        getmsg(ack);
+        if (strcmp(ack, "ACK") == 0) {
+            return true; // Acquittement reçu
+        }
+    }
+    return false; // Aucun acquittement reçu dans le temps imparti
+}
+
+void sendChunkAndWaitForAck(char *data, int numPort) {
+    bool ackReceived = false;
+    int retryCount = 0;
+    const int maxRetries = 3;
+
+    while (!ackReceived && retryCount < maxRetries) {
+        sndmsg(data, numPort);
+        ackReceived = waitForAck(numPort);
+
+        if (!ackReceived) {
+            printf("Erreur d'acquittement, tentative #%d...\n", retryCount + 1);
+        }
+        retryCount++;
+    }
+
+    if (!ackReceived) {
+        printf("Erreur d'acquittement, tentative d'envoi interrompue.\n");
+    }
+}
 bool checkAndCreateUser(int numport, const char* userID){
     char command[1024];
     char response[1024];
@@ -17,7 +61,7 @@ bool checkAndCreateUser(int numport, const char* userID){
 
     snprintf(command,sizeof (command),"-checkuser UserID:%s",userID);
     sndmsg(command,numport);
-    startserver(numport +1);
+    startserver(numport +1); // on le creer une fois et c'est tout
     getmsg(response);
 
     if(strcmp(response, "User does not exist")==0) {
@@ -111,7 +155,7 @@ void listFiles(int numPort, const char *userID) {
     char msg[1024];
     // Ouvre un serveur côté client pour recevoir la liste des fichiers
     printf("getting list of file from server of user %s...\n", userID);
-    startserver(numPort + 1);
+    //startserver(numPort + 1);
     char getMessage[1024];
     snprintf(getMessage, sizeof(getMessage), "UserID:%s", userID);
     getMessage[1023] = '\0';
@@ -124,48 +168,57 @@ void listFiles(int numPort, const char *userID) {
 
 
 void downloadFile(char *filename, int numPort, const char *userID) {
+    bool outWhile = true;
     printf("Downloading file '%s' from the server...\n", filename);
-
     // Inclure l'UserID dans la demande de téléchargement
     char command[1024];
     snprintf(command, sizeof(command), "-down %s UserID:%s", filename, userID);
     sndmsg(command, numPort); // Envoie la commande au serveur
 
     // Ouvre un serveur côté client pour recevoir le fichier
-    startserver(numPort + 1);
     char getFileCommand[256];
     snprintf(getFileCommand, sizeof(getFileCommand), "get:%s UserID:%s", filename, userID);
+    printf("1");
     sndmsg(getFileCommand, numPort);
-
+    printf("2");
+    char ackMsg[1024] = ACK_MSG;
     // Prépare à recevoir le fichier
     char receivedData[CHUNK_SIZE];
+    printf("3");
     FILE *file = fopen(filename, "w"); // Ouvre le fichier local pour l'écriture
+    printf("4");
     if (file == NULL) {
         perror("Erreur lors de l'ouverture du fichier local");
         stopserver();
         return;
     }
-
+    printf("5");
     // Boucle pour recevoir les données du fichier
-    while (1) {
+    while (outWhile) {
+        printf("bisssouuuuss");
         getmsg(receivedData); // Attends et reçoit les données du serveur
-        printf("bisouus");
-        printf("data : %s\n", receivedData);
-        if (strstr(receivedData, "EOF") != NULL) { // Vérifie le marqueur de fin de fichier
-            break; // Sortie de la boucle si la fin du fichier est atteinte
-        }
-        size_t receivedDataLength = strlen(receivedData);
-        fwrite(receivedData, 1, receivedDataLength, file); // Écrit les données dans le fichier
-        fclose(file);
-    }
 
+        printf("data : %s\n", receivedData);
+        if(strcmp(receivedData,"Error file Opening")==0){
+            outWhile = false;
+            printf("You don't have this file ! \n");
+            break;
+        }
+        else if(strcmp(receivedData, EOF_SIGNAL) == 0) { // Vérifie le marqueur de fin de fichier
+            outWhile = false;
+            printf("Fichier '%s' téléchargé avec succès\n", filename);
+            sndmsg(ackMsg,numPort);
+            break;// Sortie de la boucle si la fin du fichier est atteinte
+        } else {
+            fwrite(receivedData, 1, strlen(receivedData), file); // Écrit les données dans le fichier
+            sndmsg(ackMsg,numPort);
+
+        }
+    }
     // Fermeture du fichier et du serveur
-    printf("grous gros bisous");
     fclose(file);
     stopserver();
-    printf("Fichier '%s' téléchargé avec succès\n", filename);
-
-}
+    }
 
 
 int main(int argc, char *argv[]) {

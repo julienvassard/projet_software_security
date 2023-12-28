@@ -12,6 +12,17 @@
 
 #define HEADER_SIZE 256
 #define CHUNK_SIZE 1024
+#define CHUNK_SIZE 1024
+#define ACK_MSG "ACK"
+#define EOF_SIGNAL "FILE_TRANSFER_COMPLETE"
+
+bool sendChunkAndWaitForAck(char* data, int numPort) {
+    sndmsg(data, numPort);
+    char ack[CHUNK_SIZE];
+    getmsg(ack);  // Attendez l'acquittement du client
+    printf("Message cense etre un ACK %s \n",ack);
+    return (strcmp(ack, ACK_MSG) == 0);  // Vérifie que c'est bien un ACK
+}
 
 // On autorise uniquement les caractères alphanumériques par question de sécurité
 bool validateUserId(const char *userID) {
@@ -209,15 +220,23 @@ void handleDownload(int numPort) {
                 size_t bytesRead;
                 while ((bytesRead = fread(data, 1, sizeof(data), file)) > 0) {
                     printf("data : %s\n", data);
-                    sndmsg(data, numPort + 1);
+                    if (!sendChunkAndWaitForAck(data, numPort+1)) {
+                        printf("Erreur d'acquittement, tentative d'envoi interrompue.\n");
+                        //sndmsg(data, numPort + 1);
+                        break;
+                    }
                 }
-                sndmsg("EOF", numPort + 1);
+                sendChunkAndWaitForAck(EOF_SIGNAL, numPort+1);  // Envoie le signal de fin de fichier
                 fclose(file);
+
+                    // Attendre la confirmation de réception (ACK) du client
                 printf("Fichier '%s' téléchargé avec succès pour l'utilisateur %s.\n", filename, userID);
 
 
             } else {
-                perror("Error opening file \n");
+                char errorFile[1024] = "Error file Opening";
+                sndmsg(errorFile,numPort+1);
+                fprintf(stderr,"Error opening file: %s \n", filepath);
             }
         } else {
             perror("Invalid User ID or file received !!! \n");
@@ -225,7 +244,6 @@ void handleDownload(int numPort) {
     } else {
         printf("Filename: %s, UserID: %s\n", filename, userID);
         perror("Invalid command received !!!!!!!! \n");
-
     }
 }
 
@@ -289,7 +307,7 @@ int main() {
             } else {
                 handUserCreate(numPort);
             }
-
+            printf("%s \n",msg);
             getmsg(msg);
             if (strstr(msg, "-up") != NULL) {
                 handleUpload(numPort);
@@ -302,7 +320,7 @@ int main() {
                 printf("The User will not be created !! \n");
             }
             else {
-                printf("Commande non reconnue\n");
+                printf("Commande non reconnue \n");
             }
             userValid = false;
         }

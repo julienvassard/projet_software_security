@@ -229,7 +229,6 @@ int main(int argc, char *argv[]) {
         userValid = true;
         printf("Enter your userID: ");
         fgets(userId, sizeof(userId), stdin);
-        printf("%s \n",userId);
         userId[strcspn(userId, "\n")] = 0;//par precotion on enleve le saut à la ligne
 
         if (strlen(userId) < MIN_USERID_LENGTH || strlen(userId) > MAX_USERID_LENGTH) {

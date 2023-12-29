@@ -178,27 +178,20 @@ void downloadFile(char *filename, int numPort, const char *userID) {
     // Ouvre un serveur côté client pour recevoir le fichier
     char getFileCommand[256];
     snprintf(getFileCommand, sizeof(getFileCommand), "get:%s UserID:%s", filename, userID);
-    printf("1");
     sndmsg(getFileCommand, numPort);
-    printf("2");
     char ackMsg[1024] = ACK_MSG;
     // Prépare à recevoir le fichier
     char receivedData[CHUNK_SIZE];
-    printf("3");
-    FILE *file = fopen(filename, "w"); // Ouvre le fichier local pour l'écriture
-    printf("4");
+    FILE *file = fopen(filename, "w");
     if (file == NULL) {
         perror("Erreur lors de l'ouverture du fichier local");
         stopserver();
         return;
     }
-    printf("5");
     // Boucle pour recevoir les données du fichier
     while (outWhile) {
-        printf("bisssouuuuss");
         getmsg(receivedData); // Attends et reçoit les données du serveur
 
-        printf("data : %s\n", receivedData);
         if(strcmp(receivedData,"Error file Opening")==0){
             outWhile = false;
             printf("You don't have this file ! \n");
@@ -206,7 +199,7 @@ void downloadFile(char *filename, int numPort, const char *userID) {
         }
         else if(strcmp(receivedData, EOF_SIGNAL) == 0) { // Vérifie le marqueur de fin de fichier
             outWhile = false;
-            printf("Fichier '%s' téléchargé avec succès\n", filename);
+            printf("File '%s' download succefully\n", filename);
             sndmsg(ackMsg,numPort);
             break;// Sortie de la boucle si la fin du fichier est atteinte
         } else {
@@ -234,24 +227,24 @@ int main(int argc, char *argv[]) {
         //On demande l'userID
         userSecure = true;
         userValid = true;
-        printf("Svp entrez votre userID: ");
+        printf("Enter your userID: ");
         fgets(userId, sizeof(userId), stdin);
         printf("%s \n",userId);
         userId[strcspn(userId, "\n")] = 0;//par precotion on enleve le saut à la ligne
 
         if (strlen(userId) < MIN_USERID_LENGTH || strlen(userId) > MAX_USERID_LENGTH) {
-            printf("L'userID doit être entre %d et %d caractères.\n", MIN_USERID_LENGTH, MAX_USERID_LENGTH);
+            printf("UserID must be between %d and %d size.\n", MIN_USERID_LENGTH, MAX_USERID_LENGTH);
             userSecure = false;
         }
 
         if (strstr(userId, "..") || strstr(userId, "/")) {
-            printf("L'userID ne peut pas contenir '..' ou '/'.\n");
+            printf("UserID doesn't have '..' or '/'.\n");
             userSecure = false;
         }
 
         for (int i = 0; i < strlen(userId); i++) {
             if (!isalnum(userId[i]) && userId[i] != '-' && userId[i] != '_') {
-                printf("Caractère invalide '%c' dans l'userID.\n", userId[i]);
+                printf("Char invalid '%c' in userID.\n", userId[i]);
                 userSecure = false;
             }
 

@@ -6,6 +6,8 @@
 #include <time.h>
 #include "client.h"
 #include "server.h"
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
 
 #define CHUNK_SIZE 1024
 #define HEADER_SIZE 256
@@ -14,6 +16,9 @@
 #define ACK_WAIT_TIME 5000
 #define ACK_MSG "ACK"
 #define EOF_SIGNAL "FILE_TRANSFER_COMPLETE"
+#define BUFFER_SIZE 1024
+
+RSA *keypair;
 
 
 void sendAck(int numPort) {
@@ -98,15 +103,36 @@ bool checkAndCreateUser(int numport, const char* userID){
 }
 
 void sendFileChunk(char *data, size_t dataSize, int numPort, const char *userId, char *filename) {
+    unsigned char encrypted[BUFFER_SIZE];
+    unsigned char decrypted[BUFFER_SIZE];
+
+    keypair = RSA_generate_key(2048, RSA_F4, NULL, NULL);
+
+    int encrypted_length = RSA_public_encrypt(strlen(data) + 1, data, encrypted, keypair, RSA_PKCS1_OAEP_PADDING);
+    if (encrypted_length == -1) {
+        printf("Erreur de chiffrement\n");
+        return -1;
+    }
+
     char header[HEADER_SIZE];
     //on met l' user ID dans le header
     snprintf(header, sizeof(header), "Header: UserID:%s_FileName: %s", userId, filename);
 
     char combinedData[CHUNK_SIZE + HEADER_SIZE];
     // on combine les data et le header
-    snprintf(combinedData, sizeof(combinedData), "%s %s", header, data);
+    snprintf(combinedData, sizeof(combinedData), "%s %s", header, encrypted);
     // on envoie les données combinés
     sndmsg(combinedData, numPort);
+
+    int decrypted_length = RSA_private_decrypt(encrypted_length, encrypted, decrypted, keypair, RSA_PKCS1_OAEP_PADDING);
+    if (decrypted_length == -1) {
+        printf("Erreur de déchiffrement\n");
+        return -1;
+    }
+
+    printf("Message déchiffré : %s\n", decrypted);
+
+    RSA_free(keypair);
 }
 
 

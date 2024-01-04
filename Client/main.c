@@ -21,6 +21,51 @@
 RSA *keypair;
 
 
+void storeEncryptionKey(const char *filename, const char *encryptionKey) {
+    FILE *metadataFile = fopen("encryption_metadata.txt", "a"); // Ouvre le fichier en mode ajout
+    if (metadataFile == NULL) {
+        perror("Erreur lors de l'ouverture du fichier de métadonnées");
+        return;
+    }
+
+    fprintf(metadataFile, "%s:%s\n", filename, encryptionKey);
+    fclose(metadataFile);
+}
+
+
+
+
+char *generateEncryptionKeyFromRSAKeypair(RSA *keypair) {
+    const int keyLength = 256;
+
+    unsigned char publicKeyBuffer[4096];
+    unsigned char hashBuffer[SHA256_DIGEST_LENGTH];
+    char *encryptionKey = (char *)malloc(keyLength + 1);
+
+    // Récupérer la clé publique RSA
+    unsigned char *publicKey = NULL; // Utiliser un pointeur non constant ici
+    int publicKeySize = i2d_RSAPublicKey(keypair, &publicKey);
+    if (publicKeySize <= 0) {
+        printf("Erreur lors de la récupération de la clé publique RSA\n");
+        return NULL;
+    }
+
+    // Utilisation de SHA-256 pour hacher la clé publique
+    SHA256(publicKey, publicKeySize, hashBuffer);
+
+    // Transformation du résultat du hachage en une clé de chiffrement de longueur keyLength
+    for (int i = 0; i < keyLength; ++i) {
+        encryptionKey[i] = hashBuffer[i % SHA256_DIGEST_LENGTH];
+    }
+
+    encryptionKey[keyLength] = '\0';
+
+    return encryptionKey;
+}
+
+
+
+
 void sendAck(int numPort) {
     char ackMsg[1024] = ACK_MSG;
     sndmsg(ackMsg, numPort);
@@ -106,13 +151,22 @@ void sendFileChunk(char *data, size_t dataSize, int numPort, const char *userId,
     unsigned char encrypted[BUFFER_SIZE];
     unsigned char decrypted[BUFFER_SIZE];
 
-    keypair = RSA_generate_key(2048, RSA_F4, NULL, NULL);
+    //keypair = RSA_generate_key(2048, RSA_F4, NULL, NULL);
+
+    keypair = RSA_new();
+    BIGNUM *bne = BN_new();
+    RSA_generate_key_ex(keypair, 2048, bne, NULL);
 
     int encrypted_length = RSA_public_encrypt(strlen(data) + 1, data, encrypted, keypair, RSA_PKCS1_OAEP_PADDING);
     if (encrypted_length == -1) {
         printf("Erreur de chiffrement\n");
-        return -1;
+        return ;
     }
+
+    char *encryptionKey = generateEncryptionKeyFromRSAKeypair(keypair);
+
+    // Stocker l'association fichier-clé de chiffrement dans le fichier de métadonnées
+    storeEncryptionKey(filename, encryptionKey);
 
     char header[HEADER_SIZE];
     //on met l' user ID dans le header
@@ -127,7 +181,7 @@ void sendFileChunk(char *data, size_t dataSize, int numPort, const char *userId,
     int decrypted_length = RSA_private_decrypt(encrypted_length, encrypted, decrypted, keypair, RSA_PKCS1_OAEP_PADDING);
     if (decrypted_length == -1) {
         printf("Erreur de déchiffrement\n");
-        return -1;
+        return ;
     }
 
     printf("Message déchiffré : %s\n", decrypted);

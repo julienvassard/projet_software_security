@@ -9,12 +9,36 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+
 
 #define HEADER_SIZE 256
 #define CHUNK_SIZE 1024
 #define CHUNK_SIZE 1024
 #define ACK_MSG "ACK"
 #define EOF_SIGNAL "FILE_TRANSFER_COMPLETE"
+
+
+// Fonction pour chiffrer les données avec RSA
+int rsaEncrypt(const char *data, size_t dataSize, unsigned char *encrypted, RSA *keypair) {
+    int encrypted_length = RSA_public_encrypt(dataSize, (const unsigned char *)data, encrypted, keypair, RSA_PKCS1_OAEP_PADDING);
+    if (encrypted_length == -1) {
+        printf("Erreur de chiffrement RSA\n");
+        return -1;
+    }
+    return encrypted_length;
+}
+
+// Fonction pour déchiffrer les données avec RSA
+int rsaDecrypt(const unsigned char *encrypted, size_t encryptedSize, unsigned char *decrypted, RSA *keypair) {
+    int decrypted_length = RSA_private_decrypt(encryptedSize, encrypted, decrypted, keypair, RSA_PKCS1_OAEP_PADDING);
+    if (decrypted_length == -1) {
+        printf("Erreur de déchiffrement RSA\n");
+        return -1;
+    }
+    return decrypted_length;
+}
 
 bool sendChunkAndWaitForAck(char* data, int numPort) {
     sndmsg(data, numPort);

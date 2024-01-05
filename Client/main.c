@@ -6,6 +6,9 @@
 #include <time.h>
 #include "client.h"
 #include "server.h"
+#include <openssl/evp.h>
+#include <openssl/err.h>
+
 
 #define CHUNK_SIZE 1024
 #define HEADER_SIZE 256
@@ -14,6 +17,8 @@
 #define ACK_WAIT_TIME 5000
 #define ACK_MSG "ACK"
 #define EOF_SIGNAL "FILE_TRANSFER_COMPLETE"
+
+#define MAX_PASSWORD_LENGTH 256
 
 
 void sendAck(int numPort) {
@@ -52,11 +57,58 @@ void sendChunkAndWaitForAck(char *data, int numPort) {
         printf("Erreur d'acquittement, tentative d'envoi interrompue.\n");
     }
 }
+
+void promptPassword(char *password, const char *prompt) {
+    printf("%s", prompt);
+    if (fgets(password, MAX_PASSWORD_LENGTH, stdin) != NULL) {
+        size_t len = strlen(password);
+        if (len > 0 && password[len-1] == '\n') {
+            password[len-1] = '\0'; // Enlever le saut de ligne
+        }
+    }
+}
+// on hash le password
+
+void hashPassword(const char* password, unsigned char* hash) {
+    EVP_MD_CTX* context = EVP_MD_CTX_new();
+
+    if(context == NULL) {
+        ERR_print_errors_fp(stderr);
+        return;
+    }
+
+    if(EVP_DigestInit_ex(context, EVP_sha256(), NULL) != 1) {
+        ERR_print_errors_fp(stderr);
+        EVP_MD_CTX_free(context);
+        return;
+    }
+
+    if(EVP_DigestUpdate(context, password, strlen(password)) != 1) {
+        ERR_print_errors_fp(stderr);
+        EVP_MD_CTX_free(context);
+        return;
+    }
+
+    unsigned int lengthOfHash = 0;
+    if(EVP_DigestFinal_ex(context, hash, &lengthOfHash) != 1) {
+        ERR_print_errors_fp(stderr);
+        EVP_MD_CTX_free(context);
+        return;
+    }
+
+    EVP_MD_CTX_free(context);
+}
+
+
+
 bool checkAndCreateUser(int numport, const char* userID){
     char command[1024];
     char response[1024];
     char finalResponse[1024];
     char userValid[1024];
+    char password[256];
+    char passwordConfirmation[256];
+    bool truePassword=false;
     int c;
 
     snprintf(command,sizeof (command),"-checkuser UserID:%s",userID);
@@ -70,9 +122,35 @@ bool checkAndCreateUser(int numport, const char* userID){
         fgets(answerStr, sizeof(answerStr), stdin);
         char answer;
         answer = tolower(answerStr[0]);
+
         if (tolower(answer) == 'y') {
-            snprintf(command, sizeof(command), "-createuser UserID:%s", userID);
-            sndmsg(command, numport);
+            while (!truePassword) {
+                promptPassword(password, "Enter your password please : ");
+                promptPassword(passwordConfirmation, "Confirm the password please : ");
+
+                // on verifie maintenant que les 2 passwords correspondent
+                printf("password *: %s , passwordConfirmation : %s \n", password, passwordConfirmation);
+
+                if (strcmp(password, passwordConfirmation) != 0) {
+                    printf("The passwords don't match ! \n");
+                    truePassword = false;
+                } else {
+                    truePassword=true;
+                }
+            }
+            unsigned char hashedPassword[EVP_MAX_MD_SIZE];
+            memset(hashedPassword, 0, sizeof(hashedPassword));
+            char hashedPasswordHex[2*EVP_MAX_MD_SIZE + 1];
+            hashPassword(password, hashedPassword);
+
+            for(int i = 0; i < EVP_MAX_MD_SIZE; i++)
+                sprintf(hashedPasswordHex + (i * 2), "%02x", hashedPassword[i]);
+            hashedPasswordHex[2*EVP_MAX_MD_SIZE] = '\0';
+
+            printf("%s hashpasword just created \n",hashedPasswordHex);
+
+            snprintf(command, sizeof(command), "-createuser UserID:%s password:%s", userID,hashedPasswordHex);
+            sndmsg(command, numport); //A CHANGER AVEC LE SERVEUR CAR J'ENVOIE AUSSI LE PASSWORD
             printf(" %d", getmsg(finalResponse));
             printf("UserID '%s' created ! \n", userID);
 
@@ -93,6 +171,33 @@ bool checkAndCreateUser(int numport, const char* userID){
     }
     else {
         printf("UserID '%s' exists ! \n", userID);
+        //A CHANGER AVEC LE SERVEUR
+        promptPassword(password, "Entrez votre mot de passe: ");
+
+        unsigned char hashedPassword[EVP_MAX_MD_SIZE];
+        memset(hashedPassword, 0, sizeof(hashedPassword));
+        char hashedPasswordHex[2*EVP_MAX_MD_SIZE + 1];
+        hashPassword(password, hashedPassword);
+
+        for(int i = 0; i < EVP_MAX_MD_SIZE; i++)
+            sprintf(hashedPasswordHex + (i * 2), "%02x", hashedPassword[i]);
+        hashedPasswordHex[2*EVP_MAX_MD_SIZE] = '\0';
+
+        printf("%s hashpasword already created \n",hashedPasswordHex);
+        snprintf(command, sizeof(command), "UserID:%s password:%s", userID,hashedPasswordHex);
+
+        sndmsg(command,numport); // a changer avec le serveur
+
+        getmsg(finalResponse);
+        printf("%s \n",finalResponse); // on attend un retour du mot de passe
+        if(strcmp(finalResponse,"User verified successfully")!=0){
+            printf("Your password is false ! \n");
+            char passwordFalse[1024];
+            snprintf(passwordFalse,sizeof password,"Password false");
+            sndmsg(passwordFalse,numport);
+            stopserver();
+            return false;
+        }
     }
     return true;
 }

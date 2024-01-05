@@ -129,7 +129,6 @@ bool checkAndCreateUser(int numport, const char* userID){
                 promptPassword(passwordConfirmation, "Confirm the password please : ");
 
                 // on verifie maintenant que les 2 passwords correspondent
-                printf("password *: %s , passwordConfirmation : %s \n", password, passwordConfirmation);
 
                 if (strcmp(password, passwordConfirmation) != 0) {
                     printf("The passwords don't match ! \n");
@@ -147,11 +146,9 @@ bool checkAndCreateUser(int numport, const char* userID){
                 sprintf(hashedPasswordHex + (i * 2), "%02x", hashedPassword[i]);
             hashedPasswordHex[2*EVP_MAX_MD_SIZE] = '\0';
 
-            printf("%s hashpasword just created \n",hashedPasswordHex);
 
             snprintf(command, sizeof(command), "-createuser UserID:%s password:%s", userID,hashedPasswordHex);
             sndmsg(command, numport); //A CHANGER AVEC LE SERVEUR CAR J'ENVOIE AUSSI LE PASSWORD
-            printf(" %d", getmsg(finalResponse));
             printf("UserID '%s' created ! \n", userID);
 
             return true;
@@ -183,7 +180,6 @@ bool checkAndCreateUser(int numport, const char* userID){
             sprintf(hashedPasswordHex + (i * 2), "%02x", hashedPassword[i]);
         hashedPasswordHex[2*EVP_MAX_MD_SIZE] = '\0';
 
-        printf("%s hashpasword already created \n",hashedPasswordHex);
         snprintf(command, sizeof(command), "UserID:%s password:%s", userID,hashedPasswordHex);
 
         sndmsg(command,numport); // a changer avec le serveur
@@ -267,7 +263,7 @@ void listFiles(int numPort, const char *userID) {
     sndmsg(getMessage, numPort);
     //sndmsg(" -list", numPort);
     getmsg(msg);// Reçoit la liste des fichiers
-    printf("List of file in the server of user %s : \n%s\n", userID, msg);
+    printf("List of file in the server of user %s : \n- %s\n", userID, msg);
     stopserver();
 }
 

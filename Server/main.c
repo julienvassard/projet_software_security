@@ -9,6 +9,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+
 
 #define HEADER_SIZE 256
 #define CHUNK_SIZE 1024
@@ -55,9 +58,41 @@ bool validateFilename(const char *filename) {
     return true;
 }
 
+void hashPassword(const char* password, unsigned char* hash) {
+    EVP_MD_CTX* context = EVP_MD_CTX_new();
+    if(context == NULL) {
+        ERR_print_errors_fp(stderr);
+        return;
+    }
+    if(EVP_DigestInit_ex(context, EVP_sha256(), NULL) != 1) {
+        ERR_print_errors_fp(stderr);
+        EVP_MD_CTX_free(context);
+        return;
+    }
+    if(EVP_DigestUpdate(context, password, strlen(password)) != 1) {
+        ERR_print_errors_fp(stderr);
+        EVP_MD_CTX_free(context);
+        return;
+    }
+    unsigned int lengthOfHash = 0;
+    if(EVP_DigestFinal_ex(context, hash, &lengthOfHash) != 1) {
+        ERR_print_errors_fp(stderr);
+        EVP_MD_CTX_free(context);
+        return;
+    }
+    EVP_MD_CTX_free(context);
+}
+
+
 bool handUserCheck(int numport, const char* msg){
     char userID[256]="";
+    char password[256];
+    unsigned char hashedPassword[EVP_MAX_MD_SIZE];
+    char line[1024];
+    char storedUserID[256];
+    char storedHash[2*EVP_MAX_MD_SIZE + 1];
     char userNotExist[1024];
+    char passwordMessage[1024];
 
     if(sscanf(msg,"-checkuser UserID:%255s",userID)==1){
         if(validateUserId(userID)){
@@ -73,6 +108,43 @@ bool handUserCheck(int numport, const char* msg){
             else {
                 snprintf(userNotExist,sizeof(userNotExist),"User exists");
                 sndmsg(userNotExist,numport+1);
+
+                getmsg(passwordMessage);
+                if(sscanf(passwordMessage,"UserID:%255s password:%255s",userID,password)==2){
+                    printf("%s password received and user : %s \n",password,userID);
+                    //hashPassword(password, hashedPassword);
+                    // Converti le hash en string
+                   /* char hashHex[2*EVP_MAX_MD_SIZE + 1];
+                    for (int i = 0; i < EVP_MAX_MD_SIZE; i++) {
+                        sprintf(hashHex + (i * 2), "%02x", hashedPassword[i]);
+                    }
+                    */
+
+                    // On ouvre le fichier user et on check si l'user ID et le password match
+                    FILE* usersFile = fopen("users.txt", "r");
+                    if(usersFile) {
+                        while (fgets(line, sizeof(line), usersFile)) {
+                            sscanf(line, "%255s %s", storedUserID, storedHash);
+                            if (strcmp(userID, storedUserID) == 0 && strcmp(password, storedHash) == 0) {
+                                // User found and password matches
+                                fclose(usersFile);
+                                char userMatchPassword[1024];
+                                snprintf(userMatchPassword,sizeof userMatchPassword,"User verified successfully");
+                                sndmsg(userMatchPassword, numport + 1);
+                                return true;
+                            }
+                        }
+                        fclose(usersFile);
+                    }
+                    else{
+                        printf("Error during the opening user file !");
+                    }
+                    char userFailed[1024];
+                    snprintf(userFailed,sizeof userFailed,"User verification failed");
+                    printf("User verification failed !");
+                    sndmsg(userFailed, numport+1);
+                    return true;
+                }
             }
         }
         else {
@@ -80,23 +152,44 @@ bool handUserCheck(int numport, const char* msg){
             return false;
         }
     }
-    return true;
+    return false;
 }
 void handUserCreate(int numPort){
     char msg[1024];
     char userID[256];
+    char password[256];
     char userCreated[1024];
+    unsigned char hashedPassword[EVP_MAX_MD_SIZE];
     getmsg(msg);
-    if(sscanf(msg,"-createuser UserID:%255s", userID) == 1){
-        if(validateUserId(userID)){
-            char userDirPath[1024];
-            snprintf(userDirPath,sizeof(userDirPath),"./user_files/%s",userID);
-            mkdir(userDirPath,0777);
-            snprintf(userCreated,sizeof(userCreated),"User created");
-            sndmsg(userCreated,numPort+1);
+    if(sscanf(msg,"-createuser UserID:%255s password:%255s", userID,password) == 2){
+        if(validateUserId(userID)) {
+            printf("%s password received \n", password);
+            //On hash encore le password
+            //hashPassword(password, hashedPassword);
+
+            //On converti le hash en hex string
+
+          /*  char hashHex[2 * EVP_MAX_MD_SIZE + 1];
+            for (int i = 0; i < EVP_MAX_MD_SIZE; i++) {
+                sprintf(hashHex + (i * 2), "%02x", hashedPassword[i]);
+            }
+*/
+            //on stock l'user ID et le hash password dans un fichier txt
+            FILE *usersFile = fopen("users.txt", "a");
+            if (usersFile) {
+                fprintf(usersFile, "%s %s\n", userID, password);
+                fclose(usersFile);
+                char userDirPath[1024];
+                snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userID);
+                mkdir(userDirPath, 0777);
+                snprintf(userCreated, sizeof(userCreated), "User created");
+                sndmsg(userCreated, numPort + 1);
+            } else {
+                snprintf(userCreated, sizeof(userCreated), "Failed to create user %s.", userID);
+                sndmsg(userCreated, numPort + 1);
+            }
         }
         else {
-
             printf("Invalid UserID");
         }
     } else {
@@ -104,9 +197,6 @@ void handUserCreate(int numPort){
         char userNotCreated[1024];
         snprintf(userCreated,sizeof(userCreated),"User will not be created");
         sndmsg(userCreated,numPort+1);
-
-
-
     }
 }
 void handleUpload(int numPort) {
@@ -319,8 +409,12 @@ int main() {
             else if(strcmp(msg,"Terminate")==0){
                 printf("The User will not be created !! \n");
             }
+            else if(strcmp(msg,"Password false")==0){
+
+                printf("The password is false ! \n");
+            }
             else {
-                printf("Commande non reconnue \n");
+                printf("Commande non reconnue : %s\n",msg);
             }
             userValid = false;
         }

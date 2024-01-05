@@ -108,6 +108,7 @@ bool checkAndCreateUser(int numport, const char* userID){
     char userValid[1024];
     char password[256];
     char passwordConfirmation[256];
+    bool truePassword=false;
     int c;
 
     snprintf(command,sizeof (command),"-checkuser UserID:%s",userID);
@@ -123,15 +124,19 @@ bool checkAndCreateUser(int numport, const char* userID){
         answer = tolower(answerStr[0]);
 
         if (tolower(answer) == 'y') {
-            promptPassword(password,"Enter your password please : ");
-            promptPassword(passwordConfirmation,"Confirm the password please : ");
+            while (!truePassword) {
+                promptPassword(password, "Enter your password please : ");
+                promptPassword(passwordConfirmation, "Confirm the password please : ");
 
-            // on verifie maintenant que les 2 passwords correspondent
-            printf("password *: %s , passwordConfirmation : %s \n",password,passwordConfirmation);
+                // on verifie maintenant que les 2 passwords correspondent
+                printf("password *: %s , passwordConfirmation : %s \n", password, passwordConfirmation);
 
-            if(strcmp(password,passwordConfirmation)!=0){
-                printf("The passwords don't match ! \n");
-                return false;
+                if (strcmp(password, passwordConfirmation) != 0) {
+                    printf("The passwords don't match ! \n");
+                    truePassword = false;
+                } else {
+                    truePassword=true;
+                }
             }
             unsigned char hashedPassword[EVP_MAX_MD_SIZE];
             memset(hashedPassword, 0, sizeof(hashedPassword));

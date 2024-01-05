@@ -256,14 +256,12 @@ void listFiles(int numPort, const char *userID) {
     char msg[1024];
     // Ouvre un serveur côté client pour recevoir la liste des fichiers
     printf("getting list of file from server of user %s...\n", userID);
-    //startserver(numPort + 1);
     char getMessage[1024];
     snprintf(getMessage, sizeof(getMessage), "UserID:%s", userID);
     getMessage[1023] = '\0';
     sndmsg(getMessage, numPort);
-    //sndmsg(" -list", numPort);
     getmsg(msg);// Reçoit la liste des fichiers
-    printf("List of file in the server of user %s : \n- %s\n", userID, msg);
+    printf("List of file in the server of user %s : \n%s\n", userID, msg);
     stopserver();
 }
 

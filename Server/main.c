@@ -23,7 +23,6 @@ bool sendChunkAndWaitForAck(char* data, int numPort) {
     sndmsg(data, numPort);
     char ack[CHUNK_SIZE];
     getmsg(ack);  // Attendez l'acquittement du client
-    printf("Message cense etre un ACK %s \n",ack);
     return (strcmp(ack, ACK_MSG) == 0);  // Vérifie que c'est bien un ACK
 }
 
@@ -111,7 +110,6 @@ bool handUserCheck(int numport, const char* msg){
 
                 getmsg(passwordMessage);
                 if(sscanf(passwordMessage,"UserID:%255s password:%255s",userID,password)==2){
-                    printf("%s password received and user : %s \n",password,userID);
                     //hashPassword(password, hashedPassword);
                     // Converti le hash en string
                    /* char hashHex[2*EVP_MAX_MD_SIZE + 1];
@@ -163,7 +161,6 @@ void handUserCreate(int numPort){
     getmsg(msg);
     if(sscanf(msg,"-createuser UserID:%255s password:%255s", userID,password) == 2){
         if(validateUserId(userID)) {
-            printf("%s password received \n", password);
             //On hash encore le password
             //hashPassword(password, hashedPassword);
 
@@ -267,7 +264,6 @@ void handleUpload(int numPort) {
                 }
 
                 // Si la taille reçue est suffisante, fermer le fichier
-                printf("test : %s\n",msg);
                 if (strstr(msg, "EOF") != NULL || totalReceived >= CHUNK_SIZE) {
                     fclose(file);
                     file = NULL;
@@ -302,14 +298,12 @@ void handleDownload(int numPort) {
     printf("Received message: %s\n", msg); // a enlever
     if (sscanf(msg, "get:%255s UserID:%255s", filename, userID) == 2) {
         snprintf(filepath, sizeof(filepath), "./user_files/%s/%s", userID, filename);
-        printf("path : %s\n", filepath);
         if (validateUserId(userID)) { // && validateFilename(filename)
             FILE *file = fopen(filepath, "rb");
             if (file != NULL) {
-                char data[CHUNK_SIZE];
+                char data[CHUNK_SIZE] = "";
                 size_t bytesRead;
                 while ((bytesRead = fread(data, 1, sizeof(data), file)) > 0) {
-                    printf("data : %s\n", data);
                     if (!sendChunkAndWaitForAck(data, numPort+1)) {
                         printf("Erreur d'acquittement, tentative d'envoi interrompue.\n");
                         //sndmsg(data, numPort + 1);
@@ -332,7 +326,6 @@ void handleDownload(int numPort) {
             perror("Invalid User ID or file received !!! \n");
         }
     } else {
-        printf("Filename: %s, UserID: %s\n", filename, userID);
         perror("Invalid command received !!!!!!!! \n");
     }
 }
@@ -343,7 +336,6 @@ void handleList(int numPort) {
 
     char userID[256] = "";
 
-    printf("%s \n", msg);
     if (sscanf(msg, "UserID:%255s", userID) == 1) {
         if (validateUserId(userID)) {
             char userDirPath[1024] = "";
@@ -356,14 +348,12 @@ void handleList(int numPort) {
             struct dirent *de;
             char fileList[1024] = "";
             while ((de = readdir(dir)) != NULL) {
-                printf("while");
                 if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0) {
                     strcat(fileList, de->d_name);
                     strcat(fileList, "\n");
                 }
             }
             closedir(dir);
-            printf("bite");
             sndmsg(fileList, numPort + 1);
         } else {
             perror("ID utilisateur invalide reçu");
@@ -397,7 +387,6 @@ int main() {
             } else {
                 handUserCreate(numPort);
             }
-            printf("%s \n",msg);
             getmsg(msg);
             if (strstr(msg, "-up") != NULL) {
                 handleUpload(numPort);

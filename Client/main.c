@@ -8,6 +8,8 @@
 #include "server.h"
 #include <openssl/evp.h>
 #include <openssl/err.h>
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
 
 
 #define CHUNK_SIZE 1024
@@ -19,6 +21,126 @@
 #define EOF_SIGNAL "FILE_TRANSFER_COMPLETE"
 
 #define MAX_PASSWORD_LENGTH 256
+
+
+RSA *keypair;
+
+
+#define PUB_KEY_FILE "public_key.pem"
+#define PRIV_KEY_FILE "private_key.pem"
+
+
+// Fonction pour charger les clés RSA à partir des fichiers
+void loadKeys() {
+    // Chargement de la clé publique
+    FILE *pubFile = fopen(PUB_KEY_FILE, "rb");
+    RSA *publicKey = PEM_read_RSAPublicKey(pubFile, NULL, NULL, NULL);
+    fclose(pubFile);
+
+    // Chargement de la clé privée
+    FILE *privFile = fopen(PRIV_KEY_FILE, "rb");
+    RSA *privateKey = PEM_read_RSAPrivateKey(privFile, NULL, NULL, NULL);
+    fclose(privFile);
+
+}
+
+// Fonction pour générer les clés RSA et les stocker dans des fichiers
+void generateAndSaveKeys() {
+    RSA *rsa = RSA_new();
+    BIGNUM *bn = BN_new();
+    unsigned long e = RSA_F4;
+
+    BN_set_word(bn, e);
+
+    RSA_generate_key_ex(rsa, 2048, bn, NULL);
+
+    // Sauvegarde de la clé publique dans un fichier
+    FILE *pubFile = fopen(PUB_KEY_FILE, "wb");
+    PEM_write_RSAPublicKey(pubFile, rsa);
+    fclose(pubFile);
+
+    // Sauvegarde de la clé privée dans un fichier
+    FILE *privFile = fopen(PRIV_KEY_FILE, "wb");
+    PEM_write_RSAPrivateKey(privFile, rsa, NULL, NULL, 0, NULL, NULL);
+    fclose(privFile);
+
+    RSA_free(rsa);
+    BN_free(bn);
+}
+
+
+
+// Pour chiffrer le fichier avec la clé publique
+void encryptFileWithPublicKey(const char *filename, RSA *publicKey) {
+    FILE *file = fopen(filename, "rb");
+    if (file == NULL) {
+        perror("Error opening file");
+        return;
+    }
+
+    fseek(file, 0L, SEEK_END);
+    int fileSize = ftell(file);
+    rewind(file);
+
+    unsigned char *fileContent = (unsigned char *)malloc(fileSize);
+    if (fileContent == NULL) {
+        perror("Memory allocation failed");
+        fclose(file);
+        return;
+    }
+
+    if (fread(fileContent, 1, fileSize, file) != fileSize) {
+        perror("Error reading file");
+        fclose(file);
+        free(fileContent);
+        return;
+    }
+
+    fclose(file);
+
+    unsigned char *encryptedData = (unsigned char *)malloc(RSA_size(publicKey));
+    if (encryptedData == NULL) {
+        perror("Memory allocation failed");
+        free(fileContent);
+        return;
+    }
+
+    int encryptedLength = RSA_public_encrypt(fileSize, fileContent, encryptedData, publicKey, RSA_PKCS1_PADDING);
+    if (encryptedLength == -1) {
+        ERR_print_errors_fp(stderr);
+        free(fileContent);
+        free(encryptedData);
+        return;
+    }
+
+    // Stockez ou envoyez encryptedData (les données chiffrées) selon vos besoins
+
+    free(fileContent);
+    free(encryptedData);
+}
+
+// Déchiffrement du contenu chiffré avec la clé privée
+void decryptFileWithPrivateKey(unsigned char *encryptedContent, int encryptedLength, RSA *privateKey) {
+    unsigned char *decryptedData = (unsigned char *)malloc(RSA_size(privateKey));
+    if (decryptedData == NULL) {
+        perror("Memory allocation failed");
+        return;
+    }
+
+    int decryptedLength = RSA_private_decrypt(encryptedLength, encryptedContent, decryptedData, privateKey, RSA_PKCS1_PADDING);
+    if (decryptedLength == -1) {
+        ERR_print_errors_fp(stderr);
+        free(decryptedData);
+        return;
+    }
+
+    // Traitez ou enregistrez decryptedData (les données déchiffrées) selon vos besoins
+    // Par exemple, imprimez le contenu déchiffré
+    printf("Contenu déchiffré : %s\n", decryptedData);
+
+    free(decryptedData);
+}
+
 
 
 void sendAck(int numPort) {
@@ -322,6 +444,22 @@ int main(int argc, char *argv[]) {
     int MIN_USERID_LENGTH = 5;
     int MAX_USERID_LENGTH = 100;
 
+
+    //Pour le moment tous les clients ont la même clé de cryptage
+    FILE *pubFile = fopen(PUB_KEY_FILE, "rb");
+    FILE *privFile = fopen(PRIV_KEY_FILE, "rb");
+
+    if (pubFile == NULL || privFile == NULL) {
+        generateAndSaveKeys();
+    } else {
+        fclose(pubFile);
+        fclose(privFile);
+    }
+
+    // Charger les clés RSA depuis les fichiers
+    loadKeys();
+
+
     while(!userValid || !userSecure) {
         //On demande l'userID
         userSecure = true;
@@ -361,11 +499,18 @@ int main(int argc, char *argv[]) {
 
 
     if (strcmp(argv[1], "-up") == 0 && argc == 3) {
+        RSA *clientPublicKey; 
+        encryptFileWithPublicKey("mon_fichier.txt", clientPublicKey);
         uploadFile(argv[2], numPort, userId);
     } else if (strcmp(argv[1], "-list") == 0 && userValid) {
         listFiles(numPort, userId);
     } else if (strcmp(argv[1], "-down") == 0 && argc == 3) {
         downloadFile(argv[2], numPort, userId);
+        unsigned char *receivedEncryptedContent; // Contenu chiffré reçu du serveur
+        int receivedEncryptedLength; // Longueur du contenu chiffré reçu
+        RSA *clientPrivateKey;
+        decryptFileWithPrivateKey(receivedEncryptedContent, receivedEncryptedLength, clientPrivateKey);
+        
     } else {
         printf("Invalid command or arguments\n");
         printf("Usage: %s [option] [file]\n", argv[0]);

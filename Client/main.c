@@ -29,20 +29,30 @@ RSA *keypair;
 #define PUB_KEY_FILE "public_key.pem"
 #define PRIV_KEY_FILE "private_key.pem"
 
+RSA *publicKey; // Variable globale pour stocker la clé publique chargée
+RSA *privateKey; // Variable globale pour stocker la clé privée chargée
+
+
 
 // Fonction pour charger les clés RSA à partir des fichiers
 void loadKeys() {
     // Chargement de la clé publique
     FILE *pubFile = fopen(PUB_KEY_FILE, "rb");
-    RSA *publicKey = PEM_read_RSAPublicKey(pubFile, NULL, NULL, NULL);
+    if (pubFile == NULL) {
+        return;
+    }
+    publicKey = PEM_read_RSAPublicKey(pubFile, NULL, NULL, NULL);
     fclose(pubFile);
 
     // Chargement de la clé privée
     FILE *privFile = fopen(PRIV_KEY_FILE, "rb");
-    RSA *privateKey = PEM_read_RSAPrivateKey(privFile, NULL, NULL, NULL);
+    if (privFile == NULL) {
+        return;
+    }
+    privateKey = PEM_read_RSAPrivateKey(privFile, NULL, NULL, NULL);
     fclose(privFile);
-
 }
+
 
 // Fonction pour générer les clés RSA et les stocker dans des fichiers
 void generateAndSaveKeys() {
@@ -70,37 +80,48 @@ void generateAndSaveKeys() {
 
 
 
+
 // Pour chiffrer le fichier avec la clé publique
-void encryptFileWithPublicKey(const char *filename, RSA *publicKey) {
-    FILE *file = fopen(filename, "rb");
-    if (file == NULL) {
-        perror("Error opening file");
+void encryptFileWithPublicKey(const char *inputFilename, const char *outputFilename, RSA *publicKey) {
+    FILE *inputFile = fopen(inputFilename, "rb");
+    if (inputFile == NULL) {
+        perror("Error opening input file");
         return;
     }
 
-    fseek(file, 0L, SEEK_END);
-    int fileSize = ftell(file);
-    rewind(file);
+    FILE *outputFile = fopen(outputFilename, "wb");
+    if (outputFile == NULL) {
+        perror("Error opening output file");
+        fclose(inputFile);
+        return;
+    }
+
+    fseek(inputFile, 0L, SEEK_END);
+    int fileSize = ftell(inputFile);
+    rewind(inputFile);
 
     unsigned char *fileContent = (unsigned char *)malloc(fileSize);
     if (fileContent == NULL) {
         perror("Memory allocation failed");
-        fclose(file);
+        fclose(inputFile);
+        fclose(outputFile);
         return;
     }
 
-    if (fread(fileContent, 1, fileSize, file) != fileSize) {
-        perror("Error reading file");
-        fclose(file);
+    if (fread(fileContent, 1, fileSize, inputFile) != fileSize) {
+        perror("Error reading input file");
+        fclose(inputFile);
+        fclose(outputFile);
         free(fileContent);
         return;
     }
 
-    fclose(file);
+    fclose(inputFile);
 
     unsigned char *encryptedData = (unsigned char *)malloc(RSA_size(publicKey));
     if (encryptedData == NULL) {
         perror("Memory allocation failed");
+        fclose(outputFile);
         free(fileContent);
         return;
     }
@@ -108,36 +129,74 @@ void encryptFileWithPublicKey(const char *filename, RSA *publicKey) {
     int encryptedLength = RSA_public_encrypt(fileSize, fileContent, encryptedData, publicKey, RSA_PKCS1_PADDING);
     if (encryptedLength == -1) {
         ERR_print_errors_fp(stderr);
+        fclose(outputFile);
         free(fileContent);
         free(encryptedData);
         return;
     }
 
-    // Stockez ou envoyez encryptedData (les données chiffrées) selon vos besoins
+    fwrite(encryptedData, sizeof(unsigned char), encryptedLength, outputFile);
 
+    fclose(outputFile);
     free(fileContent);
     free(encryptedData);
 }
 
 // Déchiffrement du contenu chiffré avec la clé privée
-void decryptFileWithPrivateKey(unsigned char *encryptedContent, int encryptedLength, RSA *privateKey) {
+void decryptFileWithPrivateKey(const char *inputFilename, const char *outputFilename, RSA *privateKey) {
+    FILE *inputFile = fopen(inputFilename, "rb");
+    if (inputFile == NULL) {
+        perror("Error opening input file");
+        return;
+    }
+
+    fseek(inputFile, 0L, SEEK_END);
+    int encryptedLength = ftell(inputFile);
+    rewind(inputFile);
+
+    unsigned char *encryptedContent = (unsigned char *)malloc(encryptedLength);
+    if (encryptedContent == NULL) {
+        perror("Memory allocation failed");
+        fclose(inputFile);
+        return;
+    }
+
+    if (fread(encryptedContent, 1, encryptedLength, inputFile) != encryptedLength) {
+        perror("Error reading input file");
+        fclose(inputFile);
+        free(encryptedContent);
+        return;
+    }
+
+    fclose(inputFile);
+
     unsigned char *decryptedData = (unsigned char *)malloc(RSA_size(privateKey));
     if (decryptedData == NULL) {
         perror("Memory allocation failed");
+        free(encryptedContent);
         return;
     }
 
     int decryptedLength = RSA_private_decrypt(encryptedLength, encryptedContent, decryptedData, privateKey, RSA_PKCS1_PADDING);
     if (decryptedLength == -1) {
         ERR_print_errors_fp(stderr);
+        free(encryptedContent);
         free(decryptedData);
         return;
     }
 
-    // Traitez ou enregistrez decryptedData (les données déchiffrées) selon vos besoins
-    // Par exemple, imprimez le contenu déchiffré
-    printf("Contenu déchiffré : %s\n", decryptedData);
+    FILE *outputFile = fopen(outputFilename, "wb");
+    if (outputFile == NULL) {
+        perror("Error opening output file");
+        free(encryptedContent);
+        free(decryptedData);
+        return;
+    }
 
+    fwrite(decryptedData, sizeof(unsigned char), decryptedLength, outputFile);
+
+    fclose(outputFile);
+    free(encryptedContent);
     free(decryptedData);
 }
 
@@ -336,24 +395,31 @@ void sendFileChunk(char *data, size_t dataSize, int numPort, const char *userId,
 void uploadFile(char *filename, int numPort, const char *userID) {
     printf("Uploading file '%s' to the server on port %d...\n", filename, numPort);
 
+    const char *name = filename;
+    char outputFile[256];
+    sprintf(outputFile, "%s_encrypt", name);
+
+
+    encryptFileWithPublicKey(filename, outputFile, publicKey);
+
     char command[1024];
     snprintf(command, sizeof(command), "-up %s", filename);
     sndmsg(command, numPort);
 
-    FILE *file = fopen(filename, "rb");
+    FILE *file = fopen(outputFile, "rb");
     if (file == NULL) {
         perror("Error opening file");
         return;
     }
 
-    char header[256];
-    snprintf(header, sizeof(header), "Header: SenderID_FileName: %s", filename);
+    char header[1024];
+    snprintf(header, sizeof(header), "Header: SenderID_FileName: %.240s", outputFile);
     sndmsg(header, numPort);
 
     char buffer[CHUNK_SIZE];
     size_t bytesRead;
     while ((bytesRead = fread(buffer, 1, CHUNK_SIZE - strlen(header), file)) > 0) {
-        sendFileChunk(buffer, bytesRead, numPort, userID, filename); // Fonction à implémenter
+        sendFileChunk(buffer, bytesRead, numPort, userID, outputFile); // Fonction à implémenter
     }
 
     fclose(file);
@@ -389,21 +455,27 @@ void listFiles(int numPort, const char *userID) {
 
 
 void downloadFile(char *filename, int numPort, const char *userID) {
+
+    const char *name = filename;
+    char inputFile[256];
+    sprintf(inputFile, "%s_encrypt", name);
+
+
     bool outWhile = true;
     printf("Downloading file '%s' from the server...\n", filename);
     // Inclure l'UserID dans la demande de téléchargement
     char command[1024];
-    snprintf(command, sizeof(command), "-down %s UserID:%s", filename, userID);
+    snprintf(command, sizeof(command), "-down %s UserID:%s", inputFile, userID);
     sndmsg(command, numPort); // Envoie la commande au serveur
 
     // Ouvre un serveur côté client pour recevoir le fichier
-    char getFileCommand[256];
-    snprintf(getFileCommand, sizeof(getFileCommand), "get:%s UserID:%s", filename, userID);
+    char getFileCommand[1024];
+    snprintf(getFileCommand, sizeof(getFileCommand), "get:%s UserID:%s", inputFile, userID);
     sndmsg(getFileCommand, numPort);
     char ackMsg[1024] = ACK_MSG;
     // Prépare à recevoir le fichier
     char receivedData[CHUNK_SIZE];
-    FILE *file = fopen(filename, "w");
+    FILE *file = fopen(inputFile, "w");
     if (file == NULL) {
         perror("Erreur lors de l'ouverture du fichier local");
         stopserver();
@@ -432,7 +504,10 @@ void downloadFile(char *filename, int numPort, const char *userID) {
     // Fermeture du fichier et du serveur
     fclose(file);
     stopserver();
-    }
+
+    
+    decryptFileWithPrivateKey(inputFile, filename, privateKey);
+}
 
 
 int main(int argc, char *argv[]) {
@@ -499,17 +574,11 @@ int main(int argc, char *argv[]) {
 
 
     if (strcmp(argv[1], "-up") == 0 && argc == 3) {
-        RSA *clientPublicKey; 
-        encryptFileWithPublicKey("mon_fichier.txt", clientPublicKey);
         uploadFile(argv[2], numPort, userId);
     } else if (strcmp(argv[1], "-list") == 0 && userValid) {
         listFiles(numPort, userId);
     } else if (strcmp(argv[1], "-down") == 0 && argc == 3) {
         downloadFile(argv[2], numPort, userId);
-        unsigned char *receivedEncryptedContent; // Contenu chiffré reçu du serveur
-        int receivedEncryptedLength; // Longueur du contenu chiffré reçu
-        RSA *clientPrivateKey;
-        decryptFileWithPrivateKey(receivedEncryptedContent, receivedEncryptedLength, clientPrivateKey);
         
     } else {
         printf("Invalid command or arguments\n");

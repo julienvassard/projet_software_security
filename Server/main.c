@@ -185,11 +185,13 @@ void handUserCreate(int numPort){
                     printf("Création du répertoire 'user_files' n'existe pas.\n");
                     if (mkdir("user_files", 0777) == 0) {
                         printf("Répertoire 'user_files' créé avec succès.\n");
+                        dir = opendir("user_files");
                     } else {
                         perror("Erreur lors de la création du répertoire");
                     }
                 }
                 closedir(dir);
+                printf("test");
                 snprintf(userDirPath, sizeof(userDirPath), "./user_files/%s", userID);
                 mkdir(userDirPath, 0777);
                 snprintf(userCreated, sizeof(userCreated), "User created");
@@ -263,8 +265,8 @@ void handleUpload(int numPort) {
                 snprintf(header, sizeof(header), "Header: UserID:%s_FileName: %s", userID, filename);
                 // Vérifier si le message est une partie du fichier et écrire dans le fichier
                 if (strstr(msg, header) != NULL) {
-                    size_t headerLength = strlen(header);
-                    size_t dataLength = strlen(msg) - headerLength;
+                    size_t headerLength = strlen(header)+1;
+                    size_t dataLength = (strlen(msg) - headerLength)-1;
                     size_t bytes_written = fwrite(msg + headerLength, 1, dataLength, file);
                     if (bytes_written != dataLength) {
                         perror("Erreur lors de l'écriture dans le fichier");

@@ -29,7 +29,7 @@ bool sendChunkAndWaitForAck(char* data, int numPort) {
 // On autorise uniquement les caractères alphanumériques par question de sécurité
 bool validateUserId(const char *userID) {
     for (int i = 0; userID[i] != '\0'; i++) {
-        if (!isalnum(userID[i])) { //
+        if (!isalnum(userID[i])) {
             return false;
         }
     }
@@ -52,7 +52,6 @@ bool validateFilename(const char *filename) {
         if (i == 0 && filename[i] == '.') return false;
     }
 
-    // A voir avec l'equipe si on doit verifier d'autre chose
 
     return true;
 }
@@ -110,14 +109,6 @@ bool handUserCheck(int numport, const char* msg){
 
                 getmsg(passwordMessage);
                 if(sscanf(passwordMessage,"UserID:%255s password:%255s",userID,password)==2){
-                    //hashPassword(password, hashedPassword);
-                    // Converti le hash en string
-                   /* char hashHex[2*EVP_MAX_MD_SIZE + 1];
-                    for (int i = 0; i < EVP_MAX_MD_SIZE; i++) {
-                        sprintf(hashHex + (i * 2), "%02x", hashedPassword[i]);
-                    }
-                    */
-
                     // On ouvre le fichier user et on check si l'user ID et le password match
                     FILE* usersFile = fopen("users.txt", "r");
                     if(usersFile) {
@@ -161,16 +152,6 @@ void handUserCreate(int numPort){
     getmsg(msg);
     if(sscanf(msg,"-createuser UserID:%255s password:%255s", userID,password) == 2){
         if(validateUserId(userID)) {
-            //On hash encore le password
-            //hashPassword(password, hashedPassword);
-
-            //On converti le hash en hex string
-
-          /*  char hashHex[2 * EVP_MAX_MD_SIZE + 1];
-            for (int i = 0; i < EVP_MAX_MD_SIZE; i++) {
-                sprintf(hashHex + (i * 2), "%02x", hashedPassword[i]);
-            }
-*/
             //on stock l'user ID et le hash password dans un fichier txt
             FILE *usersFile = fopen("users.txt", "a");
             if (usersFile) {
@@ -185,6 +166,7 @@ void handUserCreate(int numPort){
                     printf("Création du répertoire 'user_files' n'existe pas.\n");
                     if (mkdir("user_files", 0777) == 0) {
                         printf("Répertoire 'user_files' créé avec succès.\n");
+                        dir = opendir("user_files");
                     } else {
                         perror("Erreur lors de la création du répertoire");
                     }
@@ -240,7 +222,7 @@ void handleUpload(int numPort) {
 
                     if (mkdir(userDirPath, 0777) == -1) { // on s'assure que le repertoire existe
                         if (errno != EEXIST) {
-                            printf("Error when the creation of the directory"); //au cas où
+                            printf("Error when the creation of the directory");
                             continue;
                         }
                     }
@@ -263,8 +245,8 @@ void handleUpload(int numPort) {
                 snprintf(header, sizeof(header), "Header: UserID:%s_FileName: %s", userID, filename);
                 // Vérifier si le message est une partie du fichier et écrire dans le fichier
                 if (strstr(msg, header) != NULL) {
-                    size_t headerLength = strlen(header);
-                    size_t dataLength = strlen(msg) - headerLength;
+                    size_t headerLength = strlen(header)+1;
+                    size_t dataLength = (strlen(msg) - headerLength)-1;
                     size_t bytes_written = fwrite(msg + headerLength, 1, dataLength, file);
                     if (bytes_written != dataLength) {
                         perror("Erreur lors de l'écriture dans le fichier");
@@ -281,7 +263,6 @@ void handleUpload(int numPort) {
                     fclose(file);
                     file = NULL;
                     totalReceived = 0;
-                    printf("Fichier '%s' reçu avec succès dans le répertoire de l'utilisateur %s.\n", filename, userID);
                     break; // Sortir de la boucle si EOF est reçu
                 }
             } else {
@@ -305,13 +286,11 @@ void handleDownload(int numPort) {
     char userID[256] = "";
     char filename[256] = "";
     char filepath[2048];
-    //sscanf(msg, "get:%s", filename);
 
 
-    printf("Received message: %s\n", msg); // a enlever
     if (sscanf(msg, "get:%255s UserID:%255s", filename, userID) == 2) {
         snprintf(filepath, sizeof(filepath), "./user_files/%s/%s", userID, filename);
-        if (validateUserId(userID)) { // && validateFilename(filename)
+        if (validateUserId(userID)) {
             FILE *file = fopen(filepath, "rb");
             if (file != NULL) {
                 char data[CHUNK_SIZE] = "";
@@ -319,15 +298,11 @@ void handleDownload(int numPort) {
                 while ((bytesRead = fread(data, 1, sizeof(data), file)) > 0) {
                     if (!sendChunkAndWaitForAck(data, numPort+1)) {
                         printf("Erreur d'acquittement, tentative d'envoi interrompue.\n");
-                        //sndmsg(data, numPort + 1);
                         break;
                     }
                 }
                 sendChunkAndWaitForAck(EOF_SIGNAL, numPort+1);  // Envoie le signal de fin de fichier
                 fclose(file);
-
-                    // Attendre la confirmation de réception (ACK) du client
-                printf("Fichier '%s' téléchargé avec succès pour l'utilisateur %s.\n", filename, userID);
 
 
             } else {

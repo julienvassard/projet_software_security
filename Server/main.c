@@ -265,8 +265,8 @@ void handleUpload(int numPort) {
                 snprintf(header, sizeof(header), "Header: UserID:%s_FileName: %s", userID, filename);
                 // Vérifier si le message est une partie du fichier et écrire dans le fichier
                 if (strstr(msg, header) != NULL) {
-                    size_t headerLength = strlen(header);
-                    size_t dataLength = strlen(msg) - headerLength;
+                    size_t headerLength = strlen(header)+1;
+                    size_t dataLength = (strlen(msg) - headerLength)-1;
                     size_t bytes_written = fwrite(msg + headerLength, 1, dataLength, file);
                     if (bytes_written != dataLength) {
                         perror("Erreur lors de l'écriture dans le fichier");

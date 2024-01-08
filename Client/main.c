@@ -466,6 +466,7 @@ void sendFileChunk(char *data, size_t dataSize, int numPort, const char *userId,
     snprintf(combinedData, sizeof(combinedData), "%s %s", header, data);
     // on envoie les données combinés
     sndmsg(combinedData, numPort);
+    
 }
 
 

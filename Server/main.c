@@ -181,7 +181,6 @@ void handUserCreate(int numPort){
                 DIR *dir = opendir("user_files");
                 if (dir) {
                     printf("Le répertoire 'user_files' existe.\n");
-                    closedir(dir);
                 } else {
                     printf("Création du répertoire 'user_files' n'existe pas.\n");
                     if (mkdir("user_files", 0777) == 0) {

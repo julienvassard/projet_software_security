@@ -51,7 +51,6 @@ dkms.conf
 .idea/*
 CMakeLists.txt
 cmake-build-debug/*
-Client/*.txt
 Server/user_files/*.txt
 Server/server
 Client/sectrans
